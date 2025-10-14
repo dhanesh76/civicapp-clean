@@ -1,0 +1,28 @@
+.
+├── folder_structure.txt
+├── mvnw
+├── mvnw.cmd
+├── pom.xml
+├── src
+│   ├── main
+│   │   ├── java
+│   │   └── resources
+│   └── test
+│       └── java
+└── target
+    ├── civic-0.0.1-SNAPSHOT.jar
+    ├── civic-0.0.1-SNAPSHOT.jar.original
+    ├── classes
+    │   ├── application.properties
+    │   └── com
+    ├── generated-sources
+    │   └── annotations
+    ├── generated-test-sources
+    │   └── test-annotations
+    ├── maven-archiver
+    │   └── pom.properties
+    ├── maven-status
+    │   └── maven-compiler-plugin
+    └── test-classes
+
+18 directories, 8 files
