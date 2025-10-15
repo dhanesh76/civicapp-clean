@@ -5,6 +5,7 @@ import java.util.Date;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -30,7 +31,6 @@ import com.visioners.civic.complaint.service.UserComplaintService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.format.annotation.DateTimeFormat;
 
 @RestController
 @RequestMapping("/api/users/complaints")
@@ -64,7 +64,6 @@ public class UserComplaintController {
         return ResponseEntity.ok(complaints);
     }
 
-    /** Detailed complaint view */
     @GetMapping("/{id}")
     public ResponseEntity<ComplaintDetailDTO> getComplaintDetail(
             @AuthenticationPrincipal UserPrincipal principal,
