@@ -19,6 +19,7 @@ import com.visioners.civic.complaint.dto.departmentcomplaintdtos.ComplaintViewDT
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.ResolveComplaint;
 import com.visioners.civic.complaint.dto.fieldworkerdtos.FieldWorkerComplaintStatsDTO;
 import com.visioners.civic.complaint.service.FieldWorkerComplaintService;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import com.visioners.civic.complaint.model.IssueSeverity;
 import com.visioners.civic.complaint.model.IssueStatus;
@@ -49,7 +50,7 @@ public class FieldWorkerComplaintController {
     public ResponseEntity<ComplaintView> resolveProblem(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam MultipartFile imageFile,
-            @ModelAttribute ResolveComplaint resolveComplaintDto) throws IOException {
+            @RequestBody ResolveComplaint resolveComplaintDto) throws IOException {
 
         ComplaintView response = fieldWorkerComplaintService.resolve(principal, imageFile, resolveComplaintDto);
         return ResponseEntity.ok(response);
@@ -74,7 +75,7 @@ public class FieldWorkerComplaintController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/{complaintId}")
+    @GetMapping("details/{complaintId}")
     public ResponseEntity<ComplaintViewDTO> getComplaintDetail(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long complaintId) {
