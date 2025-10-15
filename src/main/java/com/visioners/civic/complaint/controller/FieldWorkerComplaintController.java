@@ -5,6 +5,7 @@ import java.util.Date;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -19,10 +20,14 @@ import com.visioners.civic.complaint.dto.departmentcomplaintdtos.ComplaintViewDT
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.ResolveComplaint;
 import com.visioners.civic.complaint.dto.fieldworkerdtos.FieldWorkerComplaintStatsDTO;
 import com.visioners.civic.complaint.service.FieldWorkerComplaintService;
+
 import org.springframework.web.bind.annotation.RequestBody;
 
+import com.twilio.twiml.fax.Receive;
 import com.visioners.civic.complaint.model.IssueSeverity;
 import com.visioners.civic.complaint.model.IssueStatus;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequiredArgsConstructor
@@ -46,11 +51,11 @@ public class FieldWorkerComplaintController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/resolve")
+    @PostMapping(value="/resolve", consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ComplaintView> resolveProblem(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam MultipartFile imageFile,
-            @RequestBody ResolveComplaint resolveComplaintDto) throws IOException {
+            @RequestPart MultipartFile imageFile,
+            @Valid @RequestPart ResolveComplaint resolveComplaintDto) throws IOException {
 
         ComplaintView response = fieldWorkerComplaintService.resolve(principal, imageFile, resolveComplaintDto);
         return ResponseEntity.ok(response);
