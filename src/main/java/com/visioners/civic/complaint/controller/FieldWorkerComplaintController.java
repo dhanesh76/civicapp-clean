@@ -5,23 +5,30 @@ import java.util.Date;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import lombok.RequiredArgsConstructor;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.visioners.civic.auth.userdetails.UserPrincipal;
 import com.visioners.civic.complaint.dto.ComplaintView;
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.ComplaintRejectView;
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.ComplaintViewDTO;
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.ResolveComplaint;
 import com.visioners.civic.complaint.dto.fieldworkerdtos.FieldWorkerComplaintStatsDTO;
-import com.visioners.civic.complaint.service.FieldWorkerComplaintService;
-
 import com.visioners.civic.complaint.model.IssueSeverity;
 import com.visioners.civic.complaint.model.IssueStatus;
+import com.visioners.civic.complaint.service.FieldWorkerComplaintService;
+
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequiredArgsConstructor
@@ -45,12 +52,14 @@ public class FieldWorkerComplaintController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/resolve")
+    @PostMapping(value="/resolve", consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ComplaintView> resolveProblem(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam MultipartFile imageFile,
-            @ModelAttribute ResolveComplaint resolveComplaintDto) throws IOException {
-
+            @RequestPart MultipartFile imageFile,
+            @RequestPart("data") String data) throws IOException {
+        
+        ObjectMapper mapper = new ObjectMapper();
+        ResolveComplaint resolveComplaintDto = mapper.readValue(data, ResolveComplaint.class);
         ComplaintView response = fieldWorkerComplaintService.resolve(principal, imageFile, resolveComplaintDto);
         return ResponseEntity.ok(response);
     }
@@ -74,7 +83,7 @@ public class FieldWorkerComplaintController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/{complaintId}")
+    @GetMapping("details/{complaintId}")
     public ResponseEntity<ComplaintViewDTO> getComplaintDetail(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long complaintId) {
