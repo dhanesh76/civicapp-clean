@@ -97,7 +97,7 @@ public class DepartmentComplaintService {
         validateRejection(complaint, officer);
 
         complaint.setRejected(true);
-        complaint.setStatus(IssueStatus.CLOSED);
+        complaint.setStatus(IssueStatus.ASSIGNED);
         complaint.setActionedBy(officer);
         complaint.setRejectionNote(dto.rejectionNote());
 

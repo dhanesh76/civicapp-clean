@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.visioners.civic.auth.userdetails.UserPrincipal;
 import com.visioners.civic.complaint.dto.usercomplaintdtos.ComplaintDetailDTO;
 import com.visioners.civic.complaint.dto.usercomplaintdtos.ComplaintRaiseRequest;
@@ -29,7 +30,6 @@ import com.visioners.civic.complaint.model.IssueSeverity;
 import com.visioners.civic.complaint.model.IssueStatus;
 import com.visioners.civic.complaint.service.UserComplaintService;
 
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -42,10 +42,13 @@ public class UserComplaintController {
     /** Raise a new complaint */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ComplaintRaiseResponseDTO> raiseComplaint(
-            @Valid @RequestPart ComplaintRaiseRequest complaintRaiseDto,
+            @RequestPart("data") String data,
             @RequestPart MultipartFile imageFile,
             @AuthenticationPrincipal UserPrincipal principal) throws IOException {
 
+        ObjectMapper mapper = new ObjectMapper();
+        ComplaintRaiseRequest complaintRaiseDto = mapper.readValue(data, ComplaintRaiseRequest.class);
+        
         ComplaintRaiseResponseDTO response = userComplaintService.raiseComplaint(complaintRaiseDto, imageFile, principal);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
