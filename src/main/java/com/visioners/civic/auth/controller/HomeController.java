@@ -8,8 +8,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class HomeController {
 
     @GetMapping(value = "/", produces = "text/html")
-    public String root() {
-        String imageUrl = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRjvdIHCX1SkxYLWvXm55ZlapDkkWODwnUosQ&s";
 
         public String root() {
             String imageUrl = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRjvdIHCX1SkxYLWvXm55ZlapDkkWODwnUosQ&s";
