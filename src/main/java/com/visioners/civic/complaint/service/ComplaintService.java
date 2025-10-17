@@ -58,6 +58,7 @@ public class ComplaintService {
                         ? complaint.getAssignedTo().getUser().getUsername()
                         : null
                 )
+                .imageUrl(complaint.getImageUrl())
                 .createdAt(complaint.getCreatedAt())
                 .assignedAt(complaint.getAssignedAt())
                 .resolvedAt(complaint.getResolvedAt())

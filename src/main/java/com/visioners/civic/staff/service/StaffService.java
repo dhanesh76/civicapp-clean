@@ -102,8 +102,8 @@ public class StaffService {
                 .orElseThrow(() -> new RoleNotFoundException("Role not found: FIELD_WORKER"));
 
         Specification<Staff> spec = Specification.unrestricted();
-                spec.and(StaffSpecification.hasDepartment(officer.getDepartment()))
-                .and(StaffSpecification.hasDistrict(officer.getDistrict()))
+        spec = spec.and(StaffSpecification.hasDepartment(officer.getDepartment()));
+        spec=spec.and(StaffSpecification.hasDistrict(officer.getDistrict()))
                 .and(StaffSpecification.hasBlock(officer.getBlock()))
                 .and(StaffSpecification.hasRole(fieldWorkerRole))
                 .and(StaffSpecification.hasName(name));

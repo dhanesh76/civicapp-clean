@@ -1,6 +1,7 @@
 package com.visioners.civic.complaint.dto.departmentcomplaintdtos;
 
 import java.time.Instant;
+
 import com.visioners.civic.complaint.model.IssueSeverity;
 import com.visioners.civic.complaint.model.IssueStatus;
 import com.visioners.civic.complaint.model.Location;
@@ -15,6 +16,7 @@ public class ComplaintViewDTO {
     private String description;
     private IssueStatus status;
     private IssueSeverity severity;
+    private String imageUrl;
     private Location location;
     private String assignedBy;
     private String assignedTo;
