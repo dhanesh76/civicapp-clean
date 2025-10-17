@@ -9,7 +9,7 @@ public class HomeController {
 
     @GetMapping(value = "/", produces = "text/html")
     public String root() {
-        String imageUrl = "https://www.looper.com/img/gallery/the-ending-of-interstellar-explained/intro-1562880872.jpg";
+        String imageUrl = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRjvdIHCX1SkxYLWvXm55ZlapDkkWODwnUosQ&s";
 
         return "<!DOCTYPE html>\n" +
                 "<html lang='en'>\n" +
