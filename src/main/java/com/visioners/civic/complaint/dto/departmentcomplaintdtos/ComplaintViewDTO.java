@@ -12,7 +12,7 @@ import lombok.Data;
 @Data
 @Builder
 public class ComplaintViewDTO {
-    private Long id;
+    private String complaintId;
     private String description;
     private IssueStatus status;
     private IssueSeverity severity;

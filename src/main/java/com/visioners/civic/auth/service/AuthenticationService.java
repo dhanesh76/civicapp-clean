@@ -2,7 +2,6 @@ package com.visioners.civic.auth.service;
 
 import java.time.Instant;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.springframework.http.HttpStatus;
@@ -30,6 +29,9 @@ import com.visioners.civic.user.repository.UsersRepository;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import com.visioners.civic.exception.UserNotFoundException;
 import org.springframework.data.redis.core.RedisTemplate;
 import com.visioners.civic.auth.model.OtpPurpose;
 import com.visioners.civic.auth.dto.OtpRequest;
@@ -37,6 +39,8 @@ import com.visioners.civic.auth.dto.OtpRequest;
 @Service
 @RequiredArgsConstructor
 public class AuthenticationService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthenticationService.class);
 
     private final UsersRepository usersRepository;
     private final PasswordEncoder bcryptPasswordEncoder;
@@ -58,8 +62,8 @@ public class AuthenticationService {
             throw new RuntimeException("Mobile number already registered. Continue with login.");
         }
 
-        String encodedPassword = bcryptPasswordEncoder.encode(registerRequest.password());
-        System.out.println("encrypt of " + registerRequest.password() + " is " + encodedPassword);
+    String encodedPassword = bcryptPasswordEncoder.encode(registerRequest.password());
+    log.debug("Created temp registration session for mobile: {}", mobileNumber);
         // Store in Redis temp session
         RegisterSession session = new RegisterSession(mobileNumber, encodedPassword, DEFAULT_ROLE);
         redisTemplate.opsForValue().set("temp:register:" + mobileNumber, session, 30, TimeUnit.MINUTES);
@@ -75,8 +79,10 @@ public class AuthenticationService {
         String mobileNumber = loginRequest.mobileNumber();
         String password = loginRequest.password();
 
-        Optional<Users> users = usersRepository.findByMobileNumber(mobileNumber);
-        if(!users.get().isVerified()){
+        Users preUser = usersRepository.findByMobileNumber(mobileNumber)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        if (!preUser.isVerified()) {
             throw new RuntimeException("mobile number not verified");
         }
 

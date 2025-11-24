@@ -10,6 +10,7 @@ import com.visioners.civic.complaint.dto.ComplaintView;
 import com.visioners.civic.complaint.entity.Complaint;
 import com.visioners.civic.complaint.service.ComplaintService;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -20,7 +21,8 @@ public class ComplaintController {
     private final ComplaintService complaintService;
 
     @GetMapping("/{complaintId}")
-    ResponseEntity<ComplaintView> getComplaintById(@PathVariable("complaintId") long complaintId){
+    ResponseEntity<ComplaintView> getComplaintById(
+        @NotNull @PathVariable("complaintId") long complaintId){
         Complaint complaint = complaintService.getComplaint(complaintId);
         ComplaintView complaintView = ComplaintService.getComplaintView(complaint);
         return ResponseEntity.ok(complaintView);

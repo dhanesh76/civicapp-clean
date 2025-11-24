@@ -91,7 +91,7 @@ public class FieldWorkerComplaintService {
                 .imageUrl(c.getImageUrl())
                 .status(c.getStatus())
                 .severity(c.getSeverity())
-                .location(c.getLocation())
+                .location(ComplaintService.convertToLocation(c.getLocation(), c.getLocationPoint()))
                 .rejectionNote(c.getRejectionNote())
                 .solutionImageUrl(c.getSolutionImageUrl())
                 .solutionNote(c.getSolutionNote())

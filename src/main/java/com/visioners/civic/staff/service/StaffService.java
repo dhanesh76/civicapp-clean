@@ -57,8 +57,10 @@ public class StaffService {
         // Validate department, district, block
         Department department = departmentRepository.findById(dto.getDepartmentId())
                 .orElseThrow(() -> new EntityNotFoundException("Department not found"));
+        
         District district = districtRepository.findById(dto.getDistrictId())
                 .orElseThrow(() -> new EntityNotFoundException("District not found"));
+
         Block block = blockRepository.findById(dto.getBlockId())
                 .orElseThrow(() -> new EntityNotFoundException("Block not found"));
 
@@ -120,7 +122,7 @@ public class StaffService {
     }
 
     /** Get staff by ID */
-    public Staff getStaff(Long staffId) {
+    public Staff getStaff(long staffId) {
         return staffRepository.findById(staffId)
                 .orElseThrow(() -> new EntityNotFoundException("Staff not found with ID: " + staffId));
     }

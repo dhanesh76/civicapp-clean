@@ -3,6 +3,8 @@ package com.visioners.civic.complaint.service;
 import java.io.IOException;
 import java.util.Date;
 
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Point;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -38,6 +40,8 @@ import com.visioners.civic.complaint.repository.DepartmentRepository;
 import com.visioners.civic.complaint.repository.DistrictRepository;
 import com.visioners.civic.user.entity.Users;
 import com.visioners.civic.user.repository.UsersRepository;
+import com.visioners.civic.util.Base62;
+import com.visioners.civic.util.CounterService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -51,6 +55,8 @@ public class UserComplaintService {
     private final DepartmentRepository departmentRepository;
     private final UsersRepository usersRepository;
     private final S3Service s3Service;
+    private final GeometryFactory geometryFactory;
+    private final CounterService counterService;
 
     /** Raise a new complaint */
     public ComplaintRaiseResponseDTO raiseComplaint(ComplaintRaiseRequest request, MultipartFile imageFile, UserPrincipal principal) throws IOException {
@@ -59,6 +65,15 @@ public class UserComplaintService {
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
         Location location = request.location();
+
+        // construct the location point: to enable spatial queries
+        // validate and build using GeoUtils to keep coordinate semantics clear (lon=x, lat=y)
+        Point pt = null;
+        try {
+                pt = com.visioners.civic.util.GeoUtils.toPoint(geometryFactory, location.getLatitude(), location.getLongitude());
+        } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid coordinates provided: " + e.getMessage());
+        }
 
         District district = districtRepository.findByName(location.getSubAdminArea())
                 .orElseThrow(() -> new InvalidDistrictException("Invalid district"));
@@ -76,24 +91,29 @@ public class UserComplaintService {
         // Upload file to S3
         String imageUrl = s3Service.uploadFile(imageFile);
 
+        String complaintId = Base62.encode(counterService.increment());
+
         // TODO: Integrate ML server to validate the image 
         Complaint complaint = Complaint.builder()
-                .description(request.description())
-                .raisedBy(raisedBy)
-                .location(location)
-                .district(district)
-                .block(block)
-                .department(department)
-                .status(IssueStatus.OPEN)
-                .imageUrl(imageUrl)
-                .severity(severity)
-                .build();
-
+                                .complaintId(complaintId)
+                                .description(request.description())
+                                .severity(severity)
+                                .location(location)
+                                .locationPoint(pt)
+                                .imageUrl(imageUrl)
+                                .status(IssueStatus.OPEN)
+                                .raisedBy(raisedBy)
+                                .district(district)
+                                .block(block)
+                                .department(department)
+                                .build();
+                                
         complaintRepository.save(complaint);
 
         return new ComplaintRaiseResponseDTO(
-                department.getName(),
-                severity,
+                complaint.getComplaintId(),
+                complaint.getDepartment().getName(),
+                complaint.getSeverity(),
                 IssueStatus.OPEN,
                 complaint.getCreatedAt()
         );
@@ -115,16 +135,16 @@ public class UserComplaintService {
 
         return complaintRepository.findAll(spec, page)
                 .map(c -> ComplaintSummaryDTO.builder()
-                        .id(c.getId())
+                        .complaintId(c.getComplaintId())
                         .status(c.getStatus())
                         .severity(c.getSeverity())
-                        .location(c.getLocation())
+                        .location(ComplaintService.convertToLocation(c.getLocation(),c.getLocationPoint()))
                         .createdAt(c.getCreatedAt())
                         .build());
     }
 
     /** Get detailed view of a single complaint */
-    public ComplaintDetailDTO getComplaintDetail(UserPrincipal principal, Long complaintId) {
+    public ComplaintDetailDTO getComplaintDetail(UserPrincipal principal, long complaintId) {
 
         Complaint complaint = complaintRepository.findById(complaintId)
                 .orElseThrow(() -> new ComplaintNotFoundException("Complaint not found"));
@@ -135,11 +155,13 @@ public class UserComplaintService {
 
 
         return ComplaintDetailDTO.builder()
-                .id(complaint.getId())
+                .complaintId(complaint.getComplaintId())
                 .description(complaint.getDescription())
                 .status(complaint.getStatus())
                 .severity(complaint.getSeverity())
-                .location(complaint.getLocation())
+                .location(
+                        ComplaintService.convertToLocation(complaint.getLocation(),complaint.getLocationPoint())
+                )
                 .imageUrl(complaint.getImageUrl())
                 .createdAt(complaint.getCreatedAt())
                 .assignedAt(complaint.getAssignedAt())

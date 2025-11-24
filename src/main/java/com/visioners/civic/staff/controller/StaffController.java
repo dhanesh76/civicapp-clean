@@ -13,6 +13,7 @@ import com.visioners.civic.staff.dto.StaffView;
 import com.visioners.civic.staff.entity.Staff;
 import com.visioners.civic.staff.service.StaffService;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -24,7 +25,7 @@ public class StaffController {
 
     /** Create a new staff */
     @PostMapping
-    public ResponseEntity<StaffDetailDTO> createStaff(@RequestBody CreateStaffDTO dto) {
+    public ResponseEntity<StaffDetailDTO> createStaff(@Valid @RequestBody CreateStaffDTO dto) {
         StaffDetailDTO staff = staffService.createStaff(dto);
         return ResponseEntity.ok(staff);
     }

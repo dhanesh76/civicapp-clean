@@ -1,10 +1,12 @@
 package com.visioners.civic.complaint.controller;
+import jakarta.validation.Valid;
 
 import java.util.Date;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,6 +30,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 @RestController
 @RequestMapping("/api/departments/complaints")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('OFFICER')")
 public class DepartmentComplaintController {
 
     private final DepartmentComplaintService departmentComplaintService;
@@ -47,7 +50,7 @@ public class DepartmentComplaintController {
     @PostMapping("/assign")
     public ResponseEntity<ComplaintViewDTO> assignComplaint(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestBody AssignComplaintDTO dto
+            @Valid @RequestBody AssignComplaintDTO dto
     ) {
         return ResponseEntity.ok(departmentComplaintService.assignComplaint(principal, dto));
     }
@@ -63,7 +66,7 @@ public class DepartmentComplaintController {
     @PostMapping("/reject")
     public ResponseEntity<ComplaintViewDTO> rejectComplaint(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestBody RejectComplaintDto dto
+            @Valid @RequestBody RejectComplaintDto dto
     ) {
         return ResponseEntity.ok(departmentComplaintService.rejectComplaint(principal, dto));
     }

@@ -1,6 +1,7 @@
-package com.visioners.civic.auth.service;
+package com.visioners.civic.util;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import com.twilio.rest.api.v2010.account.Message;
 import com.twilio.type.PhoneNumber;
@@ -10,16 +11,17 @@ public class SmsService {
 
     @Value("${twilio.phoneNumber}")
     private String fromNumber;
-
+    
+    @Async("asyncExecutor")
     public void sendSms(String toNumber, String message) {
         try {
-            Message sentMessage = Message.creator(
+            Message.creator(
                 new PhoneNumber(normalizeIndianNumber(toNumber)),
                 new PhoneNumber(fromNumber),
                 message
             ).create();
-            System.out.println("Message SID: " + sentMessage.getSid());
         } catch (Exception e) {
+            System.err.println("SMS sending failed: " + e.getMessage());
             throw new RuntimeException("Unable to send SMS", e);
         }
     }
