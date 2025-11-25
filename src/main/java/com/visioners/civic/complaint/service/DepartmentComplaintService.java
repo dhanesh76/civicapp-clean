@@ -15,6 +15,8 @@ import com.visioners.civic.complaint.dto.departmentcomplaintdtos.ComplaintViewDT
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.DepartmentComplaintStatisticsDTO;
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.RejectComplaintDto;
 import com.visioners.civic.complaint.entity.Complaint;
+import com.visioners.civic.complaint.exception.InvalidStatusTransitionException;
+import com.visioners.civic.complaint.exception.ResourceNotFoundException;
 import com.visioners.civic.complaint.model.IssueSeverity;
 import com.visioners.civic.complaint.model.IssueStatus;
 import com.visioners.civic.complaint.repository.ComplaintRepository;
@@ -22,6 +24,7 @@ import com.visioners.civic.exception.*;
 import com.visioners.civic.staff.entity.Staff;
 import com.visioners.civic.staff.repository.StaffRepository;
 import com.visioners.civic.staff.service.StaffService;
+import com.visioners.civic.util.SmsService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -33,6 +36,7 @@ public class DepartmentComplaintService {
     private final ComplaintService complaintService;
     private final ComplaintRepository complaintRepository;
     private final StaffRepository staffRepository;
+    private final SmsService smsService;
 
     /** View complaints with optional filters */
     public Page<ComplaintViewDTO> viewDeptComplaints(UserPrincipal principal, Pageable page,
@@ -70,6 +74,13 @@ public class DepartmentComplaintService {
 
         complaintRepository.save(complaint);
 
+        smsService.sendSms(
+            complaint.getRaisedBy().getMobileNumber(),
+            "Dear Citizen, your complaint (" + complaint.getComplaintId() +
+            ") has been assigned to our field worker " + worker.getUser().getUsername() +
+            ". We appreciate your contribution toward a cleaner city."
+        );
+
         return ComplaintService.mapToComplaintViewDTO(complaint);
     }
 
@@ -85,6 +96,13 @@ public class DepartmentComplaintService {
         complaint.setActionedBy(officer);
 
         complaintRepository.save(complaint);
+
+        smsService.sendSms(
+            complaint.getRaisedBy().getMobileNumber(),
+            "Your complaint (" + complaint.getComplaintId() +
+            ") has been approved and officially closed. Thank you for helping improve our community!"
+        );
+
 
         return ComplaintService.mapToComplaintViewDTO(complaint);
     }
@@ -134,7 +152,7 @@ public class DepartmentComplaintService {
                 .build();
     }
 
-     public ComplaintViewDTO getComplaintDetail(UserPrincipal principal, Long complaintId) {
+     public ComplaintViewDTO getComplaintDetail(UserPrincipal principal, long complaintId) {
         Staff officer = staffRepository.findByUser(principal.getUser())
                 .orElseThrow(() -> new ResourceNotFoundException("Officer not found"));
 
@@ -153,9 +171,11 @@ public class DepartmentComplaintService {
         if (!complaint.getDepartment().equals(officer.getDepartment())) {
             throw new InvalidAssignmentException("Complaint does not belong to your department");
         }
+
         if (!worker.getDepartment().equals(officer.getDepartment())) {
             throw new InvalidAssignmentException("Worker does not belong to your department");
         }
+        
         if (!complaint.getStatus().equals(IssueStatus.OPEN)) {
             throw new InvalidStatusTransitionException("Cannot assign complaint with status " + complaint.getStatus());
         }

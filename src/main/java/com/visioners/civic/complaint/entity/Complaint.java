@@ -4,6 +4,7 @@ import java.time.Instant;
 
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.locationtech.jts.geom.Point;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.visioners.civic.complaint.model.IssueSeverity;
@@ -43,6 +44,9 @@ public class Complaint {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(unique=true, updatable=false, nullable=false)
+    private String complaintId; 
+
     @Column(nullable = false, length = 1000)
     private String description;
 
@@ -51,6 +55,9 @@ public class Complaint {
 
     @Embedded
     private Location location;
+    @Column(columnDefinition="geography(Point,4326)", nullable=false)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.GEOMETRY)
+    private Point locationPoint;
 
     @Column(unique = true, nullable = false, name = "image_url")
     private String imageUrl;
@@ -117,7 +124,6 @@ public class Complaint {
     private Instant createdAt;
 
     // Timestamp when complaint was assigned to a worker
-    @Column(updatable = false)
     private Instant assignedAt;
 
     // Timestamp when complaint was resolved by field worker
