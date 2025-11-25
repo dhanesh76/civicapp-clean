@@ -3,6 +3,7 @@ package com.visioners.civic.staff.controller;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/staff")
+@PreAuthorize("hasRole('OFFICER')")
 @RequiredArgsConstructor
 public class StaffController {
 
@@ -42,8 +44,9 @@ public class StaffController {
 
     /** Get staff details by staff ID */
     @GetMapping("/{staffId}")
-    public ResponseEntity<StaffDetailDTO> getStaffById(@PathVariable Long staffId) {
-        Staff staff = staffService.getStaff(staffId);
+    public ResponseEntity<StaffDetailDTO> getStaffById(@AuthenticationPrincipal UserPrincipal principal, @PathVariable Long staffId) {
+        
+        Staff staff = staffService.getStaff(principal, staffId);
         return ResponseEntity.ok(converToStaffDetailDTO(staff));
     }
 

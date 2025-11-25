@@ -3,6 +3,8 @@ package com.visioners.civic.auth.entity;
 import java.time.Instant;
 
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import com.visioners.civic.user.entity.Users;
 
@@ -28,6 +30,7 @@ public class RefreshToken {
 
     @ManyToOne(fetch=FetchType.LAZY)
     @JoinColumn(name="user_id", nullable=false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Users user;
 
     @Column(nullable=false)

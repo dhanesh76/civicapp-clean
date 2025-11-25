@@ -19,14 +19,7 @@ public class Location {
     @Transient
     private Double longitude;
     
-    private double accuracy;
-    private double altitude;
-    private String street;
-    private String subLocality;     
-    private String locality;        //block
-    private String subAdminArea;    //district
-    private String adminArea;       //state
-    private String postalCode;  
-    private String country;
-    private String isoCountryCode;
+    private String block;        //block
+    private String district;    //district
+    private String state;       //state
 }

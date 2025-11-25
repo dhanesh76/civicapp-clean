@@ -18,8 +18,8 @@ public class ComplaintService {
 
     private final ComplaintRepository complaintRepository;
 
-    public Complaint getComplaint(long complaintId){
-        return complaintRepository.findById(complaintId)
+    public Complaint getComplaintByComplaintId(String complaintId){
+        return complaintRepository.findByComplaintId(complaintId)
             .orElseThrow(() -> new  ComplaintNotFoundException ("no complaint exists with id: " + complaintId));
     }   
 
@@ -74,16 +74,9 @@ public class ComplaintService {
         Location.LocationBuilder builder = Location.builder();
 
         if (location != null) {
-            builder.accuracy(location.getAccuracy())
-                    .adminArea(location.getAdminArea())
-                    .altitude(location.getAltitude())
-                    .country(location.getCountry())
-                    .isoCountryCode(location.getIsoCountryCode())
-                    .locality(location.getLocality())
-                    .postalCode(location.getPostalCode())
-                    .street(location.getStreet())
-                    .subAdminArea(location.getSubAdminArea())
-                    .subLocality(location.getSubLocality());
+            builder.block(location.getBlock())
+                   .district(location.getDistrict())
+                   .state(location.getState());
         }
 
         if (point != null) {
@@ -94,8 +87,6 @@ public class ComplaintService {
             builder.longitude(location.getLongitude())
                     .latitude(location.getLatitude());
         }
-
         return builder.build();
-
     }
 }

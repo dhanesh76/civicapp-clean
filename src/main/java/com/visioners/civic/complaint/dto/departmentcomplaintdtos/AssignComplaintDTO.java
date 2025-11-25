@@ -8,7 +8,9 @@ import lombok.Data;
 @Builder
 public class AssignComplaintDTO {
     @NotNull
-    private Long complaintId;
+    private String complaintId;
+
+    
     @NotNull
     private Long workerId;
 }

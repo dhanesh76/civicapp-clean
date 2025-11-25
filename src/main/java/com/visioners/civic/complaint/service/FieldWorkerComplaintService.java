@@ -55,11 +55,11 @@ public class FieldWorkerComplaintService {
                                  MultipartFile imageFile,
                                  ResolveComplaint resolveComplaintDto) throws IOException {
 
-        Complaint complaint = complaintService.getComplaint(resolveComplaintDto.complaintId());
+        Complaint complaint = complaintService.getComplaintByComplaintId(resolveComplaintDto.complaintId());
         Staff worker = staffService.getStaff(principal.getUser());
         validateResolve(worker, complaint);
 
-        String solutionImageUrl = s3Service.uploadFile(imageFile);
+        String solutionImageUrl = s3Service.uploadFile(imageFile, complaint.getRaisedBy().getId());
 
         complaint.setResolvedAt(Instant.now());
         complaint.setSolutionImageUrl(solutionImageUrl);
@@ -74,6 +74,9 @@ public class FieldWorkerComplaintService {
         if (!worker.equals(complaint.getAssignedTo())) {
             throw new RuntimeException("Complaint " + complaint.getId() + " not assigned to staff " + worker.getId());
         }
+        if (complaint.getStatus() != IssueStatus.ASSIGNED) {
+            throw new RuntimeException("Complaint " + complaint.getId() + " is not in ASSIGNED status");
+        }
         return true;
     }
 
@@ -87,7 +90,9 @@ public class FieldWorkerComplaintService {
 
         return complaints.map(c -> ComplaintRejectView.builder()
                 .id(c.getId())
+                .raisedBy(c.getRaisedBy().getUsername())
                 .assignedBy(c.getAssignedBy().getUser().getUsername())
+                .assignedTo(c.getAssignedTo().getUser().getUsername())
                 .imageUrl(c.getImageUrl())
                 .status(c.getStatus())
                 .severity(c.getSeverity())
@@ -122,9 +127,9 @@ public class FieldWorkerComplaintService {
                 .build();
     }
 
-    public ComplaintViewDTO getComplaintDetail(UserPrincipal principal, Long complaintId) {
+    public ComplaintViewDTO getComplaintDetail(UserPrincipal principal, String complaintId) {
         Staff worker = staffService.getStaff(principal.getUser());
-        Complaint complaint = complaintService.getComplaint(complaintId);
+        Complaint complaint = complaintService.getComplaintByComplaintId(complaintId);
 
         if (!worker.equals(complaint.getAssignedTo())) {
             throw new RuntimeException("You are not authorized to view this complaint");

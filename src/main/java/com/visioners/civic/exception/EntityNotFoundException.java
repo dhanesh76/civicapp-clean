@@ -1,4 +1,4 @@
-package com.visioners.civic.staff.service;
+package com.visioners.civic.exception;
 
 public class EntityNotFoundException extends RuntimeException{
     public EntityNotFoundException(String message){

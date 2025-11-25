@@ -84,6 +84,6 @@ public class ComplaintSpecification {
 
     public static Specification<Complaint> hasRejected(){
         return (root, query, cb) -> 
-            cb.equal(root.get("isRejected"), true);
+            cb.equal(root.get("rejected"), true);
     }
 }

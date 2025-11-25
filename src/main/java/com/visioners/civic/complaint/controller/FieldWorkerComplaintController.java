@@ -88,7 +88,7 @@ public class FieldWorkerComplaintController {
     @GetMapping("details/{complaintId}")
     public ResponseEntity<ComplaintViewDTO> getComplaintDetail(
             @AuthenticationPrincipal UserPrincipal principal,
-            @PathVariable Long complaintId) {
+            @PathVariable String complaintId) {
 
         ComplaintViewDTO response = fieldWorkerComplaintService.getComplaintDetail(principal, complaintId);
         return ResponseEntity.ok(response);
