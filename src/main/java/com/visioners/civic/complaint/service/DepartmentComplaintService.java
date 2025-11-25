@@ -19,6 +19,8 @@ import com.visioners.civic.complaint.exception.InvalidStatusTransitionException;
 import com.visioners.civic.complaint.exception.ResourceNotFoundException;
 import com.visioners.civic.complaint.model.IssueSeverity;
 import com.visioners.civic.complaint.model.IssueStatus;
+import com.visioners.civic.complaint.model.NotificationType;
+import com.visioners.civic.complaint.notification.ComplaintNotificationService;
 import com.visioners.civic.complaint.repository.ComplaintRepository;
 import com.visioners.civic.exception.*;
 import com.visioners.civic.staff.entity.Staff;
@@ -37,7 +39,8 @@ public class DepartmentComplaintService {
     private final ComplaintRepository complaintRepository;
     private final StaffRepository staffRepository;
     private final SmsService smsService;
-
+    private final ComplaintNotificationService notificationService;
+    
     /** View complaints with optional filters */
     public Page<ComplaintViewDTO> viewDeptComplaints(UserPrincipal principal, Pageable page,
             IssueSeverity severity, IssueStatus status, Date from, Date to) {
@@ -74,12 +77,18 @@ public class DepartmentComplaintService {
 
         complaintRepository.save(complaint);
 
+        // notification to the user 
         smsService.sendSms(
             complaint.getRaisedBy().getMobileNumber(),
             "Dear Citizen, your complaint (" + complaint.getComplaintId() +
             ") has been assigned to our field worker " + worker.getUser().getUsername() +
             ". We appreciate your contribution toward a cleaner city."
         );
+
+        notificationService.notifyUser(complaint.getComplaintId(), complaint.getRaisedBy().getId(), NotificationType.ASSIGNED_COMPLAINT);
+
+        // notfication to the field worker 
+        notificationService.notifyFieldWorker(complaint.getComplaintId(), worker.getId(), NotificationType.ASSIGNED_COMPLAINT);
 
         return ComplaintService.mapToComplaintViewDTO(complaint);
     }
@@ -97,12 +106,16 @@ public class DepartmentComplaintService {
 
         complaintRepository.save(complaint);
 
+        //notification to the user 
         smsService.sendSms(
             complaint.getRaisedBy().getMobileNumber(),
             "Your complaint (" + complaint.getComplaintId() +
             ") has been approved and officially closed. Thank you for helping improve our community!"
         );
 
+        notificationService.notifyUser(complaintId, complaint.getId(), NotificationType.APPROVED_COMPLAINT);
+
+        notificationService.notifyFieldWorker(complaintId, complaint.getAssignedTo().getId(), NotificationType.APPROVED_COMPLAINT);
 
         return ComplaintService.mapToComplaintViewDTO(complaint);
     }
@@ -121,6 +134,8 @@ public class DepartmentComplaintService {
 
         complaintRepository.save(complaint);
 
+        notificationService.notifyFieldWorker(complaint.getComplaintId(), complaint.getAssignedTo().getId(), NotificationType.REJECTED_COMPLAINT);
+        
         return ComplaintService.mapToComplaintViewDTO(complaint);
     }
 
