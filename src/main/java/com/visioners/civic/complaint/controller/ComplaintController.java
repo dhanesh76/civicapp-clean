@@ -22,8 +22,8 @@ public class ComplaintController {
 
     @GetMapping("/{complaintId}")
     ResponseEntity<ComplaintView> getComplaintById(
-        @NotNull @PathVariable("complaintId") long complaintId){
-        Complaint complaint = complaintService.getComplaint(complaintId);
+        @NotNull @PathVariable("complaintId") String complaintId){
+        Complaint complaint = complaintService.getComplaintByComplaintId(complaintId);
         ComplaintView complaintView = ComplaintService.getComplaintView(complaint);
         return ResponseEntity.ok(complaintView);
     }

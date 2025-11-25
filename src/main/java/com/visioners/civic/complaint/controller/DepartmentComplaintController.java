@@ -6,7 +6,6 @@ import java.util.Date;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,7 +29,6 @@ import org.springframework.format.annotation.DateTimeFormat;
 @RestController
 @RequestMapping("/api/departments/complaints")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('OFFICER')")
 public class DepartmentComplaintController {
 
     private final DepartmentComplaintService departmentComplaintService;
@@ -58,7 +56,7 @@ public class DepartmentComplaintController {
     @PostMapping("/approve/{complaintId}")
     public ResponseEntity<ComplaintViewDTO> approveComplaint(
             @AuthenticationPrincipal UserPrincipal principal,
-            @PathVariable Long complaintId
+            @PathVariable String complaintId
     ) {
         return ResponseEntity.ok(departmentComplaintService.approveComplaint(principal, complaintId));
     }
@@ -85,7 +83,7 @@ public class DepartmentComplaintController {
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long complaintId
     ) {
-        return ResponseEntity.ok(departmentComplaintService.getComplaintDetail(principal, complaintId));
+        return ResponseEntity.ok(departmentComplaintService.getComplaintByComplaintIdDetail(principal, complaintId));
     }
 
     // @GetMapping("/rejected-complaints")

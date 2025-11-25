@@ -76,29 +76,33 @@ public class AuthenticationService {
     }
 
     public LoginResponse login(LoginRequest loginRequest) {
-        String mobileNumber = loginRequest.mobileNumber();
+        String loginId = loginRequest.loginId();
         String password = loginRequest.password();
 
-        Users preUser = usersRepository.findByMobileNumber(mobileNumber)
-                .orElseThrow(() -> new UserNotFoundException("User not found"));
+        boolean isEmail = loginId.contains("@");
+        Users user;
+        if(isEmail){    
+            user = usersRepository.findByEmail(loginId).orElseThrow(() -> new UserNotFoundException("User with email " + loginId + " not found"));
+        }else{
+            user = usersRepository.findByMobileNumber(loginId).orElseThrow(() -> new UserNotFoundException("User with mobile number " + loginId + " not found"));
+        }
 
-        if (!preUser.isVerified()) {
-            throw new RuntimeException("mobile number not verified");
+        if (!user.isVerified()) {
+            throw new RuntimeException(isEmail ? "Email not verified" : "Mobile number not verified");
         }
 
         UsernamePasswordAuthenticationToken token =
-                new UsernamePasswordAuthenticationToken(mobileNumber, password);
+                new UsernamePasswordAuthenticationToken(loginId, password);
 
         Authentication authentication = authenticationManager.authenticate(token);
 
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-        Users user = userPrincipal.getUser();
-
+        
         String accessToken = jwtService.generateToken(userPrincipal);
         RefreshToken refreshToken = refreshTokenService.createToken(user);
 
         return LoginResponse.builder()
-                .mobileNumber(mobileNumber)
+                .loginId(loginId)
                 .accessToken(accessToken)
                 .refreshToken(refreshToken.getToken())
                 .timestamp(Instant.now())
@@ -144,7 +148,7 @@ public class AuthenticationService {
         String accessToken = jwtTokenService.generateToken(new UserPrincipal(user));
 
         return ResponseEntity.ok(LoginResponse.builder()
-                .mobileNumber(user.getMobileNumber())
+                .loginId(user.getMobileNumber() == null ? user.getEmail() : user.getMobileNumber())
                 .accessToken(accessToken)
                 .refreshToken(refreshTokenStr)
                 .timestamp(Instant.now())

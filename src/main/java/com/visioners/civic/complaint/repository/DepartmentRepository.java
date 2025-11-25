@@ -11,5 +11,7 @@ import com.visioners.civic.complaint.entity.Department;
 public interface DepartmentRepository extends JpaRepository<Department, Long>{
 
     Optional<Department> findByName(String department);
+
+    Optional<Department> findByNameAndBlockId(String string, Long id);
     
 }

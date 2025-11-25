@@ -46,12 +46,13 @@ public class UserComplaintController {
     public ResponseEntity<ComplaintRaiseResponseDTO> raiseComplaint(
             @RequestPart("data") String data,
             @RequestPart MultipartFile imageFile,
+            @RequestPart(required = false) MultipartFile audioFile,
             @AuthenticationPrincipal UserPrincipal principal) throws IOException {
 
         ObjectMapper mapper = new ObjectMapper();
         ComplaintRaiseRequest complaintRaiseDto = mapper.readValue(data, ComplaintRaiseRequest.class);
         
-        ComplaintRaiseResponseDTO response = userComplaintService.raiseComplaint(complaintRaiseDto, imageFile, principal);
+        ComplaintRaiseResponseDTO response = userComplaintService.raiseComplaint(complaintRaiseDto, imageFile, audioFile, principal);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -72,7 +73,7 @@ public class UserComplaintController {
     @GetMapping("/{id}")
     public ResponseEntity<ComplaintDetailDTO> getComplaintDetail(
             @AuthenticationPrincipal UserPrincipal principal,
-            @PathVariable Long id) {
+            @PathVariable String id) {
 
         ComplaintDetailDTO detail = userComplaintService.getComplaintDetail(principal, id);
         return ResponseEntity.ok(detail);

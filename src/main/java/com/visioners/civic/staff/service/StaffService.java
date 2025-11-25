@@ -15,6 +15,8 @@ import com.visioners.civic.complaint.entity.District;
 import com.visioners.civic.complaint.repository.BlockRepository;
 import com.visioners.civic.complaint.repository.DepartmentRepository;
 import com.visioners.civic.complaint.repository.DistrictRepository;
+import com.visioners.civic.exception.DuplicateResourceException;
+import com.visioners.civic.exception.EntityNotFoundException;
 import com.visioners.civic.exception.RoleNotFoundException;
 import com.visioners.civic.role.entity.Role;
 import com.visioners.civic.role.repository.RoleRepository;
@@ -42,7 +44,8 @@ public class StaffService {
     private final PasswordEncoder passwordEncoder;
 
     /** Create a new Staff with user */
-    @Transactional
+    @SuppressWarnings("null")
+@Transactional
     public StaffDetailDTO createStaff(CreateStaffDTO dto) {
 
         // Check if mobile number already exists
@@ -122,8 +125,21 @@ public class StaffService {
     }
 
     /** Get staff by ID */
-    public Staff getStaff(long staffId) {
-        return staffRepository.findById(staffId)
-                .orElseThrow(() -> new EntityNotFoundException("Staff not found with ID: " + staffId));
+    public Staff getStaff(UserPrincipal officerPrincipal, long staffId) {
+        Staff officer = staffRepository.findByUser(officerPrincipal.getUser())
+                .orElseThrow(() -> new EntityNotFoundException("Officer not found"));
+                
+        Staff fieldWorker =  staffRepository.findById(staffId)
+        .orElseThrow(() -> new EntityNotFoundException("Staff not found with ID: " + staffId));
+        
+        if(officer.getDepartment().getId() != fieldWorker.getDepartment().getId()){
+                throw new EntityNotFoundException("Staff not found with ID: " + staffId  +" under your jurisdiction");
+        }
+        return fieldWorker;
+    }
+
+    public Staff getStaff(long staffId) {        
+        return  staffRepository.findById(staffId)
+        .orElseThrow(() -> new EntityNotFoundException("Staff not found with ID: " + staffId));
     }
 }

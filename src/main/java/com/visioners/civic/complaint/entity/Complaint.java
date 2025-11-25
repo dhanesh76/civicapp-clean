@@ -7,9 +7,11 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.locationtech.jts.geom.Point;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.visioners.civic.complaint.model.Category;
 import com.visioners.civic.complaint.model.IssueSeverity;
 import com.visioners.civic.complaint.model.IssueStatus;
 import com.visioners.civic.complaint.model.Location;
+import com.visioners.civic.complaint.model.SubCategory;
 import com.visioners.civic.staff.entity.Staff;
 import com.visioners.civic.user.entity.Users;
 
@@ -29,9 +31,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * Complaint entity for managing citizen complaints.
- */
 @Entity
 @Getter
 @Setter
@@ -44,8 +43,9 @@ public class Complaint {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique=true, updatable=false, nullable=false)
-    private String complaintId; 
+    /** Public complaint ID like C09H2 */
+    @Column(unique = true, updatable = false, nullable = false)
+    private String complaintId;
 
     @Column(nullable = false, length = 1000)
     private String description;
@@ -53,83 +53,97 @@ public class Complaint {
     @Enumerated(EnumType.STRING)
     private IssueSeverity severity;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Category category;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, name = "sub_category")
+    private SubCategory subCategory;
+    
+    /** Human-readable block/district/state */
     @Embedded
     private Location location;
-    @Column(columnDefinition="geography(Point,4326)", nullable=false)
+
+    /** GIS coordinate for spatial search */
+    @Column(columnDefinition = "geography(Point,4326)", nullable = false)
     @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.GEOMETRY)
     private Point locationPoint;
 
-    @Column(unique = true, nullable = false, name = "image_url")
+    /** Image of issue, mandatory */
+    @Column(nullable = false, unique = true, name = "image_url")
     private String imageUrl;
 
-    @Column(nullable = false)
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private IssueStatus status;
 
+    // -------------------- RELATIONS -------------------- //
+
+    /** Citizen who raised the complaint */
     @ManyToOne
     @JoinColumn(name = "raised_by_id", nullable = false)
     @JsonManagedReference
     private Users raisedBy;
 
+    /** District under which the complaint falls */
     @ManyToOne
     @JoinColumn(name = "district_id", nullable = false)
-    @JsonManagedReference
     private District district;
 
+    /** Block under the district */
     @ManyToOne
     @JoinColumn(name = "block_id", nullable = false)
-    @JsonManagedReference
     private Block block;
 
+    /** Department responsible for handling */
     @ManyToOne
     @JoinColumn(name = "department_id", nullable = false)
-    @JsonManagedReference
     private Department department;
 
-    // Staff who assigned the complaint
+    /** Officer who assigned it */
     @ManyToOne
-    @JoinColumn(name = "assigned_by_staff_id")
-    @JsonManagedReference
+    @JoinColumn(name = "assigned_by_id")
     private Staff assignedBy;
 
-    // Field worker assigned to resolve the complaint
+    /** Field worker assigned to resolve it */
     @ManyToOne
-    @JoinColumn(name = "assigned_staff_id")
-    @JsonManagedReference
+    @JoinColumn(name = "assigned_to_id")
     private Staff assignedTo;
 
-    // Image uploaded by field worker as solution
-    @Column(unique = true)
+    /** Final image uploaded by field worker */
+    @Column(name = "solution_image_url")
     private String solutionImageUrl;
 
-    // Note or description of solution by field worker
+    /** Final solution note */
+    @Column(name = "solution_note")
     private String solutionNote;
 
-    // Officer who approves or rejects
+    /** Officer who approved/rejected */
     @ManyToOne
     @JoinColumn(name = "actioned_by_id")
-    @JsonManagedReference
     private Staff actionedBy;
 
-    // Timestamp when officer approved/rejected
+    /** When officer approved/rejected */
     private Instant actionedAt;
 
-    // Flag and note for rejected complaints
-    private boolean isRejected;
+    /** Rejection flag */
+    @Column(name = "is_rejected")
+    private boolean rejected;
+
+    @Column(name = "rejection_note")
     private String rejectionNote;
 
-    // Timestamp when complaint was created
+    // -------------------- TIMESTAMPS -------------------- //
+
     @CreationTimestamp
     @Column(updatable = false, nullable = false)
     private Instant createdAt;
 
-    // Timestamp when complaint was assigned to a worker
     private Instant assignedAt;
 
-    // Timestamp when complaint was resolved by field worker
     private Instant resolvedAt;
 
-    // Last updated timestamp
     @UpdateTimestamp
     @Column(nullable = false)
     private Instant updatedAt;

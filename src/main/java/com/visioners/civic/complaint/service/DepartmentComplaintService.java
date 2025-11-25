@@ -62,7 +62,7 @@ public class DepartmentComplaintService {
     public ComplaintViewDTO assignComplaint(UserPrincipal principal, AssignComplaintDTO dto) {
         Staff officer = staffService.getStaff(principal.getUser());
         Staff worker = staffService.getStaff(dto.getWorkerId());
-        Complaint complaint = complaintService.getComplaint(dto.getComplaintId());
+        Complaint complaint = complaintService.getComplaintByComplaintId(dto.getComplaintId());
 
         validateAssignment(complaint, officer, worker);
 
@@ -85,9 +85,9 @@ public class DepartmentComplaintService {
     }
 
     /** Approve resolved complaint */
-    public ComplaintViewDTO approveComplaint(UserPrincipal principal, Long complaintId) {
+    public ComplaintViewDTO approveComplaint(UserPrincipal principal, String complaintId) {
         Staff officer = staffService.getStaff(principal.getUser());
-        Complaint complaint = complaintService.getComplaint(complaintId);
+        Complaint complaint = complaintService.getComplaintByComplaintId(complaintId);
 
         validateApproval(complaint, officer);
 
@@ -110,7 +110,7 @@ public class DepartmentComplaintService {
     /** Reject resolved complaint */
     public ComplaintViewDTO rejectComplaint(UserPrincipal principal, RejectComplaintDto dto) {
         Staff officer = staffService.getStaff(principal.getUser());
-        Complaint complaint = complaintService.getComplaint(dto.complaintId());
+        Complaint complaint = complaintService.getComplaintByComplaintId(dto.complaintId());
 
         validateRejection(complaint, officer);
 
@@ -152,7 +152,7 @@ public class DepartmentComplaintService {
                 .build();
     }
 
-     public ComplaintViewDTO getComplaintDetail(UserPrincipal principal, long complaintId) {
+     public ComplaintViewDTO getComplaintByComplaintIdDetail(UserPrincipal principal, long complaintId) {
         Staff officer = staffRepository.findByUser(principal.getUser())
                 .orElseThrow(() -> new ResourceNotFoundException("Officer not found"));
 
