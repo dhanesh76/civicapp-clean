@@ -32,11 +32,13 @@ public class SecurityConfig {
                 .cors(cors -> cors.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/")
-                        .permitAll()
-                        // .requestMatchers("/api/departments/complaints/**").hasRole("OFFICER")
+                        .requestMatchers("/api/auth/**", "/").permitAll()
+                        .requestMatchers("/api/departments/complaints/**").hasRole("OFFICER")
                         .requestMatchers("/api/workers/complaints/**").hasRole("FIELD_WORKER")
                         .requestMatchers("/api/users/complaints/**").hasRole("USER")
+                        .requestMatchers("/ws/**").permitAll()        // allow websocket handshake
+                        .requestMatchers("/topic/**").permitAll()     // allow broker messages
+                        .requestMatchers("/app/**").permitAll()       // stomp app prefix
                         .anyRequest()
                         .authenticated()
                 )

@@ -20,6 +20,7 @@ import com.visioners.civic.complaint.entity.*;
 import com.visioners.civic.exception.*;
 
 import com.visioners.civic.complaint.model.*;
+import com.visioners.civic.complaint.notification.ComplaintNotificationService;
 import com.visioners.civic.complaint.repository.*;
 import com.visioners.civic.user.entity.Users;
 import com.visioners.civic.user.repository.UsersRepository;
@@ -40,6 +41,7 @@ public class UserComplaintService {
     private final GeometryFactory geometryFactory;
     private final ComplaintAudioRepository complaintAudioRepository;
     private final ComplaintIdGenerator complaintIdGenerator;
+    private final ComplaintNotificationService notificationService;
 
     /** Raise a new complaint */
     public ComplaintRaiseResponseDTO raiseComplaint(
@@ -125,6 +127,9 @@ public class UserComplaintService {
 
             complaintAudioRepository.save(Objects.requireNonNull(complaintAudio));
         }
+
+        // trigger notfication to the department
+        notificationService.notifyDepartment(complaintId, department.getId(), NotificationType.NEW_COMPLAINT);
 
         return new ComplaintRaiseResponseDTO(
                 complaint.getComplaintId(),

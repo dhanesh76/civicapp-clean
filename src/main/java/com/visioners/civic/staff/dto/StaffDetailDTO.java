@@ -1,4 +1,5 @@
 package com.visioners.civic.staff.dto;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.NotNull;
@@ -24,6 +25,9 @@ public class StaffDetailDTO {
     @NotBlank(message = "Mobile number cannot be empty")
     @Pattern(regexp = "[0-9]{10}", message = "Enter a valid 10-digit mobile number")
     private String mobileNumber;
+
+    @Email
+    private String email;
 
     @NotBlank(message = "Role name cannot be empty")
     private String roleName;

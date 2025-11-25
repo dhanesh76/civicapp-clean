@@ -26,6 +26,7 @@ import com.visioners.civic.complaint.service.DepartmentComplaintService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+
 @RestController
 @RequestMapping("/api/departments/complaints")
 @RequiredArgsConstructor

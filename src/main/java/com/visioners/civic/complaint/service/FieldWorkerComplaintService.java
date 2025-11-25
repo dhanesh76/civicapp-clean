@@ -21,6 +21,8 @@ import com.visioners.civic.complaint.dto.fieldworkerdtos.FieldWorkerComplaintSta
 import com.visioners.civic.complaint.entity.Complaint;
 import com.visioners.civic.complaint.model.IssueSeverity;
 import com.visioners.civic.complaint.model.IssueStatus;
+import com.visioners.civic.complaint.model.NotificationType;
+import com.visioners.civic.complaint.notification.ComplaintNotificationService;
 import com.visioners.civic.complaint.repository.ComplaintRepository;
 import com.visioners.civic.staff.entity.Staff;
 import com.visioners.civic.staff.service.StaffService;
@@ -35,6 +37,7 @@ public class FieldWorkerComplaintService {
     private final ComplaintRepository complaintRepository;
     private final ComplaintService complaintService;
     private final S3Service s3Service;
+    private final ComplaintNotificationService notificationService;
 
     public Page<ComplaintView> viewAssignedComplaints(UserPrincipal principal,
                                                       Pageable page,
@@ -67,6 +70,9 @@ public class FieldWorkerComplaintService {
         complaint.setStatus(IssueStatus.RESOLVED);
 
         complaintRepository.save(complaint);
+
+        notificationService.notifyDepartment(complaint.getComplaintId(), complaint.getDepartment().getId(), NotificationType.RESOLVED_COMPLAINT);
+
         return ComplaintService.getComplaintView(complaint);
     }
 
