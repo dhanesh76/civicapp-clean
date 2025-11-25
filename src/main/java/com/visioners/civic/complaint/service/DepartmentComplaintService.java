@@ -87,8 +87,8 @@ public class DepartmentComplaintService {
 
         notificationService.notifyUser(complaint.getComplaintId(), complaint.getRaisedBy().getId(), NotificationType.ASSIGNED_COMPLAINT);
 
-        // notfication to the field worker 
-        notificationService.notifyFieldWorker(complaint.getComplaintId(), worker.getId(), NotificationType.ASSIGNED_COMPLAINT);
+        // notification to the field worker: pass the user table id (Staff.user.id)
+        notificationService.notifyFieldWorker(complaint.getComplaintId(), worker.getUser().getId(), NotificationType.ASSIGNED_COMPLAINT);
 
         return ComplaintService.mapToComplaintViewDTO(complaint);
     }
@@ -113,9 +113,11 @@ public class DepartmentComplaintService {
             ") has been approved and officially closed. Thank you for helping improve our community!"
         );
 
-        notificationService.notifyUser(complaintId, complaint.getId(), NotificationType.APPROVED_COMPLAINT);
+        // notify the original user who raised the complaint (pass Users.id)
+        notificationService.notifyUser(complaintId, complaint.getRaisedBy().getId(), NotificationType.APPROVED_COMPLAINT);
 
-        notificationService.notifyFieldWorker(complaintId, complaint.getAssignedTo().getId(), NotificationType.APPROVED_COMPLAINT);
+        // notify the field worker by their user id (Staff.user.id)
+        notificationService.notifyFieldWorker(complaintId, complaint.getAssignedTo().getUser().getId(), NotificationType.APPROVED_COMPLAINT);
 
         return ComplaintService.mapToComplaintViewDTO(complaint);
     }
@@ -134,7 +136,7 @@ public class DepartmentComplaintService {
 
         complaintRepository.save(complaint);
 
-        notificationService.notifyFieldWorker(complaint.getComplaintId(), complaint.getAssignedTo().getId(), NotificationType.REJECTED_COMPLAINT);
+        notificationService.notifyFieldWorker(complaint.getComplaintId(), complaint.getAssignedTo().getUser().getId(), NotificationType.REJECTED_COMPLAINT);
         
         return ComplaintService.mapToComplaintViewDTO(complaint);
     }

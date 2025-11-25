@@ -17,8 +17,8 @@ public class ComplaintNotificationService {
     private final SimpMessagingTemplate messagingTemplate;
 
     @Async("asyncExecutor")
-    public void notifyDepartment(String complaintId, Long deptId, NotificationType type) {
-        send("/topic/department/" + deptId, type, complaintId);
+    public void notifyDepartmentOfficer(String complaintId, Long departmentId, NotificationType type) {
+        send("/topic/department/" + departmentId, type, complaintId);
     }
 
     @Async("asyncExecutor")

@@ -103,6 +103,7 @@ public class AuthenticationService {
 
         return LoginResponse.builder()
                 .loginId(loginId)
+                .userId(user.getId())
                 .accessToken(accessToken)
                 .refreshToken(refreshToken.getToken())
                 .timestamp(Instant.now())

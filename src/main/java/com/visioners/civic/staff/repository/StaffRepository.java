@@ -12,7 +12,5 @@ import com.visioners.civic.user.entity.Users;
 
 @Repository
 public interface StaffRepository extends JpaRepository<Staff, Long>, JpaSpecificationExecutor<Staff>{
-
     Optional<Staff> findByUser(Users user);
-
 }

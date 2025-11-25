@@ -71,7 +71,11 @@ public class FieldWorkerComplaintService {
 
         complaintRepository.save(complaint);
 
-        notificationService.notifyDepartment(complaint.getComplaintId(), complaint.getDepartment().getId(), NotificationType.RESOLVED_COMPLAINT);
+        notificationService.notifyDepartmentOfficer(
+            complaint.getComplaintId(), 
+            complaint.getAssignedBy().getUser().getId(),
+            NotificationType.RESOLVED_COMPLAINT
+        );
 
         return ComplaintService.getComplaintView(complaint);
     }

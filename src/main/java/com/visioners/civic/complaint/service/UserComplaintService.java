@@ -129,10 +129,11 @@ public class UserComplaintService {
         }
 
         // trigger notfication to the department
-        notificationService.notifyDepartment(complaintId, department.getId(), NotificationType.NEW_COMPLAINT);
+        notificationService.notifyDepartmentOfficer(complaintId, complaint.getDepartment().getId(), NotificationType.NEW_COMPLAINT);
 
         return new ComplaintRaiseResponseDTO(
                 complaint.getComplaintId(),
+                complaint.getDepartment().getId(),
                 complaint.getDepartment().getName(),
                 complaint.getSeverity(),
                 IssueStatus.OPEN,
