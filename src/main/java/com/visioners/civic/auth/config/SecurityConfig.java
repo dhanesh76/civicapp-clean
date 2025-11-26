@@ -39,6 +39,7 @@ public class SecurityConfig {
                         .requestMatchers("/ws/**").permitAll()        // allow websocket handshake
                         .requestMatchers("/topic/**").permitAll()     // allow broker messages
                         .requestMatchers("/app/**").permitAll()       // stomp app prefix
+                        .requestMatchers("/ws-test/index.html").permitAll()
                         .anyRequest()
                         .authenticated()
                 )
