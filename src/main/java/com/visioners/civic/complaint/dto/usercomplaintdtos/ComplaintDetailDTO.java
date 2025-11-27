@@ -20,6 +20,8 @@ public record ComplaintDetailDTO(
     Instant assignedAt,
     Instant resolvedAt,
     String solutionNote,
-    String solutionImageUrl
+    String solutionImageUrl,
+    com.visioners.civic.complaint.dto.feedback.ViewFeedbackDTO feedback
+    
 ) {}
 

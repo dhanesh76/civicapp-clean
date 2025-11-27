@@ -79,7 +79,7 @@ public class Complaint {
     private IssueStatus status;
 
     // -------------------- RELATIONS -------------------- //
-
+    
     /** Citizen who raised the complaint */
     @ManyToOne
     @JoinColumn(name = "raised_by_id", nullable = false)

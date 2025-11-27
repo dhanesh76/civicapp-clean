@@ -82,7 +82,7 @@ public class DepartmentComplaintController {
     @GetMapping("/{complaintId}")
     public ResponseEntity<ComplaintViewDTO> getComplaintDetail(
             @AuthenticationPrincipal UserPrincipal principal,
-            @PathVariable Long complaintId
+            @PathVariable String complaintId
     ) {
         return ResponseEntity.ok(departmentComplaintService.getComplaintByComplaintIdDetail(principal, complaintId));
     }

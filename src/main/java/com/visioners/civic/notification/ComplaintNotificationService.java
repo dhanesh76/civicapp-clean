@@ -1,11 +1,14 @@
-package com.visioners.civic.complaint.notification;
+package com.visioners.civic.notification;
 
 import org.springframework.stereotype.Service;
 
 import com.visioners.civic.complaint.dto.notification.ComplaintNotification;
 import com.visioners.civic.complaint.model.NotificationType;
 
+import io.micrometer.common.lang.NonNull;
 import lombok.RequiredArgsConstructor;
+
+import java.util.Objects;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
@@ -31,7 +34,10 @@ public class ComplaintNotificationService {
         send("/topic/worker/" + workerId, type, complaintId);
     }
 
-    private void send(String destination, NotificationType type, String complaintId) {
+    private void send(@NonNull String destination, NotificationType type, String complaintId) {
+        
+        Objects.requireNonNull(destination);
+
         messagingTemplate.convertAndSend(
             destination,
             new ComplaintNotification(type.name(), complaintId)

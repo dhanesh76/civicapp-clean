@@ -16,14 +16,14 @@ import com.visioners.civic.complaint.Specifications.ComplaintSpecification;
 import com.visioners.civic.complaint.dto.ComplaintView;
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.ComplaintRejectView;
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.ComplaintViewDTO;
-import com.visioners.civic.complaint.dto.departmentcomplaintdtos.ResolveComplaint;
 import com.visioners.civic.complaint.dto.fieldworkerdtos.FieldWorkerComplaintStatsDTO;
+import com.visioners.civic.complaint.dto.fieldworkerdtos.ResolveComplaintDto;
 import com.visioners.civic.complaint.entity.Complaint;
 import com.visioners.civic.complaint.model.IssueSeverity;
 import com.visioners.civic.complaint.model.IssueStatus;
 import com.visioners.civic.complaint.model.NotificationType;
-import com.visioners.civic.complaint.notification.ComplaintNotificationService;
 import com.visioners.civic.complaint.repository.ComplaintRepository;
+import com.visioners.civic.notification.ComplaintNotificationService;
 import com.visioners.civic.staff.entity.Staff;
 import com.visioners.civic.staff.service.StaffService;
 
@@ -33,16 +33,17 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class FieldWorkerComplaintService {
 
+    private final double WORKER_RADIUS = 50;
+
     private final StaffService staffService;
     private final ComplaintRepository complaintRepository;
     private final ComplaintService complaintService;
     private final S3Service s3Service;
     private final ComplaintNotificationService notificationService;
-
     public Page<ComplaintView> viewAssignedComplaints(UserPrincipal principal,
-                                                      Pageable page,
-                                                      IssueSeverity severity,
-                                                      Date from, Date to) {
+            Pageable page,
+            IssueSeverity severity,
+            Date from, Date to) {
 
         Staff staff = staffService.getStaff(principal.getUser());
 
@@ -55,13 +56,22 @@ public class FieldWorkerComplaintService {
     }
 
     public ComplaintView resolve(UserPrincipal principal,
-                                 MultipartFile imageFile,
-                                 ResolveComplaint resolveComplaintDto) throws IOException {
+            MultipartFile imageFile,
+            ResolveComplaintDto resolveComplaintDto) throws IOException {
 
         Complaint complaint = complaintService.getComplaintByComplaintId(resolveComplaintDto.complaintId());
+
         Staff worker = staffService.getStaff(principal.getUser());
+
         validateResolve(worker, complaint);
 
+        boolean isWithin = complaintRepository.isWorkerWithinDistance(resolveComplaintDto.complaintId(),
+                resolveComplaintDto.lat(), resolveComplaintDto.lon(), WORKER_RADIUS);
+
+        if (!isWithin) {
+            throw new com.visioners.civic.exception.InvalidAssignmentException("Worker must be within 50 meters of complaint location to resolve it.");
+        }
+        
         String solutionImageUrl = s3Service.uploadFile(imageFile, complaint.getRaisedBy().getId());
 
         complaint.setResolvedAt(Instant.now());
@@ -72,20 +82,19 @@ public class FieldWorkerComplaintService {
         complaintRepository.save(complaint);
 
         notificationService.notifyDepartmentOfficer(
-            complaint.getComplaintId(), 
-            complaint.getAssignedBy().getUser().getId(),
-            NotificationType.RESOLVED_COMPLAINT
-        );
+                complaint.getComplaintId(),
+                complaint.getAssignedBy().getUser().getId(),
+                NotificationType.RESOLVED_COMPLAINT);
 
         return ComplaintService.getComplaintView(complaint);
     }
 
     private boolean validateResolve(Staff worker, Complaint complaint) {
         if (!worker.equals(complaint.getAssignedTo())) {
-            throw new RuntimeException("Complaint " + complaint.getId() + " not assigned to staff " + worker.getId());
+            throw new com.visioners.civic.exception.UnauthorizedActionException("Complaint " + complaint.getId() + " not assigned to staff " + worker.getId());
         }
         if (complaint.getStatus() != IssueStatus.ASSIGNED) {
-            throw new RuntimeException("Complaint " + complaint.getId() + " is not in ASSIGNED status");
+            throw new com.visioners.civic.complaint.exception.InvalidStatusTransitionException("Complaint " + complaint.getId() + " is not in ASSIGNED status");
         }
         return true;
     }
@@ -142,9 +151,9 @@ public class FieldWorkerComplaintService {
         Complaint complaint = complaintService.getComplaintByComplaintId(complaintId);
 
         if (!worker.equals(complaint.getAssignedTo())) {
-            throw new RuntimeException("You are not authorized to view this complaint");
+            throw new com.visioners.civic.exception.UnauthorizedActionException("You are not authorized to view this complaint");
         }
 
-        return ComplaintService.mapToComplaintViewDTO(complaint);
+        return complaintService.mapToComplaintViewDTO(complaint);
     }
 }

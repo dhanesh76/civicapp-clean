@@ -69,7 +69,7 @@ public class S3Service {
             return generatePublicUrl(fileName);
             
         } catch (S3Exception e) {
-            throw new RuntimeException("Failed to upload file to S3: " + e.getMessage(), e);
+            throw new com.visioners.civic.exception.ExternalServiceException("Failed to upload file to S3: " + e.getMessage(), e);
         }
     }
     
@@ -102,7 +102,7 @@ public class S3Service {
             return generatePublicUrl(fileName);
             
         } catch (S3Exception e) {
-            throw new RuntimeException("Failed to upload audio file to S3: " + e.getMessage(), e);
+            throw new com.visioners.civic.exception.ExternalServiceException("Failed to upload audio file to S3: " + e.getMessage(), e);
         }
     }
     

@@ -66,6 +66,7 @@ public class StaffController {
                         .id(s.getId())
                         .username(s.getUser().getUsername())
                         .mobileNumber(s.getUser().getMobileNumber())
+                        .departmentId(s.getDepartment().getId())
                         .email(s.getUser().getEmail())
                         .roleName(s.getUser().getRole().getName())
                         .departmentName(s.getDepartment().getName())

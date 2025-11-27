@@ -14,5 +14,7 @@ public record ComplaintSummaryDTO(
     IssueStatus status,
     IssueSeverity severity,
     Instant createdAt,
-    Location location
+    Location location, 
+    Long supportCount,
+    Long commentCount
 ) {}

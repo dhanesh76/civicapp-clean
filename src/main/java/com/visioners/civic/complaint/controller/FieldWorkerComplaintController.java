@@ -14,17 +14,18 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.validation.Valid;
 import com.visioners.civic.auth.userdetails.UserPrincipal;
 import com.visioners.civic.complaint.dto.ComplaintView;
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.ComplaintRejectView;
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.ComplaintViewDTO;
-import com.visioners.civic.complaint.dto.departmentcomplaintdtos.ResolveComplaint;
 import com.visioners.civic.complaint.dto.fieldworkerdtos.FieldWorkerComplaintStatsDTO;
+import com.visioners.civic.complaint.dto.fieldworkerdtos.ResolveComplaintDto;
 import com.visioners.civic.complaint.model.IssueSeverity;
 import com.visioners.civic.complaint.model.IssueStatus;
 import com.visioners.civic.complaint.service.FieldWorkerComplaintService;
@@ -45,8 +46,8 @@ public class FieldWorkerComplaintController {
             Pageable page,
             @RequestParam(required = false) IssueSeverity severity,
             @RequestParam(required = false) IssueStatus status,
-            @RequestParam(required = false) Date from,
-            @RequestParam(required = false) Date to) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date to) {
 
         Page<ComplaintView> response = fieldWorkerComplaintService
                 .viewAssignedComplaints(principal, page, severity, from, to);
@@ -58,12 +59,10 @@ public class FieldWorkerComplaintController {
     public ResponseEntity<ComplaintView> resolveProblem(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestPart MultipartFile imageFile,
-            @RequestPart("data") String data) throws IOException {
-        
-        ObjectMapper mapper = new ObjectMapper();
-        ResolveComplaint resolveComplaintDto = mapper.readValue(data, ResolveComplaint.class);
-        ComplaintView response = fieldWorkerComplaintService.resolve(principal, imageFile, resolveComplaintDto);
-        return ResponseEntity.ok(response);
+            @RequestPart("data") @Valid ResolveComplaintDto resolveComplaintDto) throws IOException {
+
+            ComplaintView response = fieldWorkerComplaintService.resolve(principal, imageFile, resolveComplaintDto);
+            return ResponseEntity.ok(response);
     }
 
     @GetMapping("/rejected")
@@ -78,8 +77,8 @@ public class FieldWorkerComplaintController {
     @GetMapping("/stats")
     public ResponseEntity<FieldWorkerComplaintStatsDTO> getComplaintStats(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam(required = false) Date from,
-            @RequestParam(required = false) Date to) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date to) {
 
         FieldWorkerComplaintStatsDTO response = fieldWorkerComplaintService.getComplaintStats(principal, from, to);
         return ResponseEntity.ok(response);

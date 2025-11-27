@@ -1,5 +1,6 @@
 package com.visioners.civic.complaint.dto.departmentcomplaintdtos;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Data;
@@ -7,11 +8,11 @@ import lombok.Data;
 @Data
 @Builder
 public class AssignComplaintDTO {
-    @NotNull
-    private String complaintId;
+	@NotBlank(message = "complaintId cannot be blank")
+	private String complaintId;
 
-    
-    @NotNull
-    private Long workerId;
+	@NotNull(message = "workerId is required")
+	private Long workerId;
 }
+
 

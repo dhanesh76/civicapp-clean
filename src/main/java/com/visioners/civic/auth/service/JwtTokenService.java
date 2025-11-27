@@ -8,10 +8,12 @@ import javax.crypto.SecretKey;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import com.visioners.civic.auth.userdetails.UserPrincipal;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 
@@ -46,5 +48,35 @@ public class JwtTokenService {
 
     public SecretKey getKey(){
         return Keys.hmacShaKeyFor(secret.getBytes());
+    }
+
+    public String extractUsername(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(getKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            return claims.getSubject();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public boolean validateToken(String token, UserDetails userDetails) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(getKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+
+            String username = claims.getSubject();
+            boolean expired = claims.getExpiration().before(new java.util.Date());
+
+            return username.equals(userDetails.getUsername()) && !expired;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

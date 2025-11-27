@@ -1,6 +1,7 @@
 package com.visioners.civic.complaint.Specifications;
 
 import java.util.Date;
+import java.time.Instant;
 
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
@@ -31,12 +32,16 @@ public class ComplaintSpecification {
 
     public static Specification<Complaint> hasDate(Date from, Date to){
         return (root, query, cb) -> {
-            if(from != null && to != null)
-                return cb.between(root.get("createdAt"), from, to);
-            else if(from != null)
-                return cb.greaterThanOrEqualTo(root.get("createdAt"), from);
-            else if(to != null)
-                return cb.lessThanOrEqualTo(root.get("createdAt"), to);
+            // Complaint.createdAt is an Instant; convert incoming Dates to Instant
+            Instant fromInst = from != null ? from.toInstant() : null;
+            Instant toInst = to != null ? to.toInstant() : null;
+
+            if (fromInst != null && toInst != null)
+                return cb.between(root.get("createdAt"), fromInst, toInst);
+            else if (fromInst != null)
+                return cb.greaterThanOrEqualTo(root.get("createdAt"), fromInst);
+            else if (toInst != null)
+                return cb.lessThanOrEqualTo(root.get("createdAt"), toInst);
             return null;
         };
     }

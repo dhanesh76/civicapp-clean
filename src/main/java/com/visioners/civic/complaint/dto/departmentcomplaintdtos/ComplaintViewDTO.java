@@ -5,6 +5,7 @@ import java.time.Instant;
 import com.visioners.civic.complaint.model.IssueSeverity;
 import com.visioners.civic.complaint.model.IssueStatus;
 import com.visioners.civic.complaint.model.Location;
+import com.visioners.civic.complaint.dto.feedback.ViewFeedbackDTO;
 
 import lombok.Builder;
 import lombok.Data;
@@ -26,5 +27,6 @@ public class ComplaintViewDTO {
     private String solutionNote;
     private String solutionImageUrl;
     private String rejectionNote;
+    private ViewFeedbackDTO feedback;
 }
 

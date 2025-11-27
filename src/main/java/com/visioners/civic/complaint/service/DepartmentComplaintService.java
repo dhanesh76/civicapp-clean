@@ -20,9 +20,9 @@ import com.visioners.civic.complaint.exception.ResourceNotFoundException;
 import com.visioners.civic.complaint.model.IssueSeverity;
 import com.visioners.civic.complaint.model.IssueStatus;
 import com.visioners.civic.complaint.model.NotificationType;
-import com.visioners.civic.complaint.notification.ComplaintNotificationService;
 import com.visioners.civic.complaint.repository.ComplaintRepository;
 import com.visioners.civic.exception.*;
+import com.visioners.civic.notification.ComplaintNotificationService;
 import com.visioners.civic.staff.entity.Staff;
 import com.visioners.civic.staff.repository.StaffRepository;
 import com.visioners.civic.staff.service.StaffService;
@@ -40,7 +40,8 @@ public class DepartmentComplaintService {
     private final StaffRepository staffRepository;
     private final SmsService smsService;
     private final ComplaintNotificationService notificationService;
-    
+    private final ComplaintFeedbackService complaintFeedbackService;
+
     /** View complaints with optional filters */
     public Page<ComplaintViewDTO> viewDeptComplaints(UserPrincipal principal, Pageable page,
             IssueSeverity severity, IssueStatus status, Date from, Date to) {
@@ -58,7 +59,7 @@ public class DepartmentComplaintService {
 
         Page<Complaint> complaints = complaintRepository.findAll(specification, page);
 
-        return complaints.map(ComplaintService::mapToComplaintViewDTO);
+        return complaints.map(complaintService::mapToComplaintViewDTO);
     }
 
     /** Assign complaint to worker */
@@ -90,7 +91,7 @@ public class DepartmentComplaintService {
         // notification to the field worker: pass the user table id (Staff.user.id)
         notificationService.notifyFieldWorker(complaint.getComplaintId(), worker.getUser().getId(), NotificationType.ASSIGNED_COMPLAINT);
 
-        return ComplaintService.mapToComplaintViewDTO(complaint);
+        return complaintService.mapToComplaintViewDTO(complaint);
     }
 
     /** Approve resolved complaint */
@@ -119,7 +120,7 @@ public class DepartmentComplaintService {
         // notify the field worker by their user id (Staff.user.id)
         notificationService.notifyFieldWorker(complaintId, complaint.getAssignedTo().getUser().getId(), NotificationType.APPROVED_COMPLAINT);
 
-        return ComplaintService.mapToComplaintViewDTO(complaint);
+        return complaintService.mapToComplaintViewDTO(complaint);
     }
 
     /** Reject resolved complaint */
@@ -138,7 +139,7 @@ public class DepartmentComplaintService {
 
         notificationService.notifyFieldWorker(complaint.getComplaintId(), complaint.getAssignedTo().getUser().getId(), NotificationType.REJECTED_COMPLAINT);
         
-        return ComplaintService.mapToComplaintViewDTO(complaint);
+        return complaintService.mapToComplaintViewDTO(complaint);
     }
 
     /** Complaint statistics for department */
@@ -158,7 +159,7 @@ public class DepartmentComplaintService {
         long resolved = complaintRepository.count(spec.and(ComplaintSpecification.hasStatus(IssueStatus.RESOLVED)));
         long rejected = complaintRepository.count(spec.and(ComplaintSpecification.hasRejected()));
         long closed = complaintRepository.count(spec.and(ComplaintSpecification.hasStatus(IssueStatus.CLOSED)));
-
+        double avgRating = complaintFeedbackService.findDepartmentAvgRating(officer.getDepartment().getId());
         return DepartmentComplaintStatisticsDTO.builder()
                 .totalComplaints(total)
                 .openCount(open)
@@ -166,21 +167,22 @@ public class DepartmentComplaintService {
                 .resolvedCount(resolved)
                 .rejectedCount(rejected)
                 .closedCount(closed)
+                .avgRating(avgRating)
                 .build();
     }
 
-     public ComplaintViewDTO getComplaintByComplaintIdDetail(UserPrincipal principal, long complaintId) {
+     public ComplaintViewDTO getComplaintByComplaintIdDetail(UserPrincipal principal, String complaintId) {
         Staff officer = staffRepository.findByUser(principal.getUser())
                 .orElseThrow(() -> new ResourceNotFoundException("Officer not found"));
 
-        Complaint complaint = complaintRepository.findById(complaintId)
+        Complaint complaint = complaintRepository.findByComplaintId(complaintId)
                 .orElseThrow(() -> new ResourceNotFoundException("Complaint not found"));
 
         if (!complaint.getDepartment().getId().equals(officer.getDepartment().getId())) {
             throw new IllegalArgumentException("Complaint does not belong to your department");
         }
 
-        return ComplaintService.mapToComplaintViewDTO(complaint);
+        return complaintService.mapToComplaintViewDTO(complaint);
     }
 
     // ---------------- Validation Methods ----------------

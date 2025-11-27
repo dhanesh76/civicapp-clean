@@ -6,7 +6,9 @@ import org.springframework.stereotype.Service;
 import com.visioners.civic.complaint.dto.ComplaintView;
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.ComplaintViewDTO;
 import com.visioners.civic.complaint.entity.Complaint;
+import com.visioners.civic.complaint.entity.ComplaintFeedback;
 import com.visioners.civic.complaint.model.Location;
+import com.visioners.civic.complaint.dto.feedback.ViewFeedbackDTO;
 import com.visioners.civic.complaint.repository.ComplaintRepository;
 import com.visioners.civic.exception.ComplaintNotFoundException;
 
@@ -17,7 +19,8 @@ import lombok.RequiredArgsConstructor;
 public class ComplaintService {
 
     private final ComplaintRepository complaintRepository;
-
+    private final ComplaintFeedbackService complaintFeedbackService;
+    
     public Complaint getComplaintByComplaintId(String complaintId){
         return complaintRepository.findByComplaintId(complaintId)
             .orElseThrow(() -> new  ComplaintNotFoundException ("no complaint exists with id: " + complaintId));
@@ -39,10 +42,17 @@ public class ComplaintService {
                     .build();
     }
 
-    public static ComplaintViewDTO mapToComplaintViewDTO(Complaint complaint) {
+    public ComplaintViewDTO mapToComplaintViewDTO(Complaint complaint) {
         if (complaint == null) {
             return null;
         }
+
+        ComplaintFeedback  fb = complaintFeedbackService.getFeedbacks(complaint.getRaisedBy(), complaint).orElse(null);
+        ViewFeedbackDTO fbDto = fb ==  null ?  null : new ViewFeedbackDTO(
+            fb.getComment(),
+            fb.getRating(),
+            fb.getCreatedAt()
+        );
 
         return ComplaintViewDTO.builder()
                 .complaintId(complaint.getComplaintId())
@@ -67,6 +77,7 @@ public class ComplaintService {
                 .solutionNote(complaint.getSolutionNote())
                 .solutionImageUrl(complaint.getSolutionImageUrl())
                 .rejectionNote(complaint.getRejectionNote())
+                .feedback(fbDto)
                 .build();
     }
 

@@ -59,7 +59,7 @@ public class AuthenticationService {
         String mobileNumber = registerRequest.mobileNumber();
 
         if (usersRepository.findByMobileNumber(mobileNumber).isPresent()) {
-            throw new RuntimeException("Mobile number already registered. Continue with login.");
+            throw new com.visioners.civic.exception.DuplicateResourceException("Mobile number already registered. Continue with login.");
         }
 
     String encodedPassword = bcryptPasswordEncoder.encode(registerRequest.password());
@@ -88,7 +88,7 @@ public class AuthenticationService {
         }
 
         if (!user.isVerified()) {
-            throw new RuntimeException(isEmail ? "Email not verified" : "Mobile number not verified");
+            throw new com.visioners.civic.exception.AccessDeniedException(isEmail ? "Email not verified" : "Mobile number not verified");
         }
 
         UsernamePasswordAuthenticationToken token =

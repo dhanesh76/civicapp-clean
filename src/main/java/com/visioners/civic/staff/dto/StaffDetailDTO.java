@@ -32,6 +32,9 @@ public class StaffDetailDTO {
     @NotBlank(message = "Role name cannot be empty")
     private String roleName;
 
+    @NotNull
+    private Long departmentId;
+
     @NotBlank(message = "Department name cannot be empty")
     private String departmentName;
 

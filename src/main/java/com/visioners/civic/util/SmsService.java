@@ -36,7 +36,7 @@ public class SmsService {
             } else {
                 log.error("SMS sending failed: {}", e.getMessage(), e);
             }
-            throw new RuntimeException("Unable to send SMS", e);
+            throw new com.visioners.civic.exception.ExternalServiceException("Unable to send SMS", e);
         }
     }
     

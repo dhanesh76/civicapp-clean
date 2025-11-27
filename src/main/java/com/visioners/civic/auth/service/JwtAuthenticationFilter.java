@@ -10,8 +10,6 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -41,7 +39,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = authHeader.substring(7);
 
         // Extract username (subject claim)
-        String username = extractUsername(token);
+        String username = jwtService.extractUsername(token);
 
         // Skip if invalid token or already authenticated
         if (username == null || SecurityContextHolder.getContext().getAuthentication() != null) {
@@ -52,7 +50,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
         // Validate token with secret
-        if (!validateToken(token, userDetails)) {
+        if (!jwtService.validateToken(token, userDetails)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -70,35 +68,5 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         SecurityContextHolder.getContext().setAuthentication(authToken);
 
         filterChain.doFilter(request, response);
-    }
-    
-    private String extractUsername(String token) {
-        try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(jwtService.getKey())
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-            return claims.getSubject();
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private boolean validateToken(String token, UserDetails userDetails) {
-        try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(jwtService.getKey())
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-
-            String username = claims.getSubject();
-            boolean expired = claims.getExpiration().before(new java.util.Date());
-
-            return username.equals(userDetails.getUsername()) && !expired;
-        } catch (Exception e) {
-            return false;
-        }
     }
 }
