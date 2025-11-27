@@ -3,6 +3,7 @@ package com.visioners.civic.complaint.service;
 import java.io.IOException;
 import java.util.Date;
 import java.util.Objects;
+import java.util.Optional;
 
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
@@ -43,7 +44,7 @@ public class UserComplaintService {
         private final ComplaintIdGenerator complaintIdGenerator;
         private final ComplaintNotificationService notificationService;
         private final CommunityInteractionService communityInteractionService;
-        
+        private final ComplaintAudioRepository audioRepository;
         /** Raise a new complaint */
         public ComplaintRaiseResponseDTO raiseComplaint(
                         ComplaintRaiseRequest request,
@@ -181,12 +182,16 @@ public class UserComplaintService {
                 if (!complaint.getRaisedBy().getId().equals(principal.getUser().getId())) {
                         throw new AccessDeniedException("You do not own this complaint");
                 }
+ 
+                Optional<ComplaintAudio> audioOpt  = audioRepository.findByComplaintId(complaint.getId());
+                String audioUrl = audioOpt.isEmpty() ? null : audioOpt.get().getAudioUrl();
 
                 return ComplaintDetailDTO.builder()
                                 .complaintId(complaint.getComplaintId())
                                 .description(complaint.getDescription())
                                 .status(complaint.getStatus())
                                 .severity(complaint.getSeverity())
+                                .audioUrl(audioUrl)
                                 .location(
                                         ComplaintService.convertToLocation(complaint)
                                         )

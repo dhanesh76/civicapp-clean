@@ -17,6 +17,7 @@ public record ComplaintDetailDTO(
     IssueSeverity severity,
     Location location,
     String imageUrl,
+    String audioUrl,
     Instant createdAt,
     Instant assignedAt,
     Instant resolvedAt,
