@@ -101,7 +101,7 @@ public class FieldWorkerComplaintService {
 
     public Page<ComplaintRejectView> rejectedComplaints(UserPrincipal principal, Pageable page) {
         Staff worker = staffService.getStaff(principal.getUser());
-
+        
         Specification<Complaint> specification = ComplaintSpecification.hasAssignedTo(worker)
                 .and(ComplaintSpecification.hasRejected());
 
@@ -115,7 +115,7 @@ public class FieldWorkerComplaintService {
                 .imageUrl(c.getImageUrl())
                 .status(c.getStatus())
                 .severity(c.getSeverity())
-                .location(ComplaintService.convertToLocation(c.getLocation(), c.getLocationPoint()))
+                .location(ComplaintService.convertToLocation(c))
                 .rejectionNote(c.getRejectionNote())
                 .solutionImageUrl(c.getSolutionImageUrl())
                 .solutionNote(c.getSolutionNote())

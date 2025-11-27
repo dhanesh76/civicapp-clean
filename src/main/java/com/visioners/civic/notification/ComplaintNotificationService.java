@@ -22,7 +22,8 @@ public class ComplaintNotificationService {
     @Async("asyncExecutor")
     public void notifyDepartmentOfficer(String complaintId, Long departmentId, NotificationType type) {
         send("/topic/department/" + departmentId, type, complaintId);
-    }
+    } 
+
 
     @Async("asyncExecutor")
     public void notifyUser(String complaintId, Long userId, NotificationType type) {

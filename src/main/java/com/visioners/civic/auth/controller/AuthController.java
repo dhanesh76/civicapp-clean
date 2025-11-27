@@ -52,12 +52,12 @@ public class AuthController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/verifyOtp")
+    @PostMapping("/verify-otp")
     public ResponseEntity<Map<String, Object>> verifyOtp(@Valid @RequestBody OtpVerifyRequest verifyRequest) {
         return authenticationService.verifyOtp(verifyRequest);
     }
 
-    @PostMapping("/requestOtp")
+    @PostMapping("/request-otp")
     public ResponseEntity<Map<String, Object>> requestOtp(
         @Valid @RequestBody 
         OtpRequest request,

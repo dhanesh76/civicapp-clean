@@ -5,6 +5,10 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
+import com.visioners.civic.community.dto.CommunityCommentDTO;
+import com.visioners.civic.community.dto.ComplaintCommunityDetailDTO;
+import com.visioners.civic.community.dto.ComplaintCommunityInteractionDto;
+import com.visioners.civic.community.dto.ComplaintInteractionSummaryDTO;
 import com.visioners.civic.community.entity.CommunityComment;
 import com.visioners.civic.community.entity.CommunitySupport;
 import com.visioners.civic.community.repository.CommunityCommentRepository;
@@ -45,16 +49,14 @@ public class CommunityInteractionService {
                 CommunitySupport.builder()
                         .user(user)
                         .complaint(complaint)
-                        .build()
-        );
+                        .build());
 
         return true; // now supported
     }
 
-
     /** COMMENT */
     @Transactional
-    public CommunityComment addComment(Users user, String complaintId, String text) {
+    public CommunityCommentDTO addComment(Users user, String complaintId, String text) {
 
         Complaint complaint = complaintRepo.findByComplaintId(complaintId)
                 .orElseThrow(() -> new ComplaintNotFoundException("Complaint not found"));
@@ -64,10 +66,10 @@ public class CommunityInteractionService {
                 .complaint(complaint)
                 .comment(text)
                 .build();
-
-        return commentRepo.save(comment);
+        
+        commentRepo.save(comment);
+        return new CommunityCommentDTO(comment.getUser().getUsername(), comment.getComment(), comment.getCreatedAt());
     }
-
 
     /** Count helpers */
     public long getSupportCount(Complaint c) {
@@ -88,5 +90,55 @@ public class CommunityInteractionService {
     /** to check UI state */
     public boolean userHasSupported(Users user, Complaint complaint) {
         return supportRepo.findByUserAndComplaint(user, complaint).isPresent();
+    }
+
+    public ComplaintInteractionSummaryDTO getSummary(Complaint complaint) {
+        return new ComplaintInteractionSummaryDTO(
+                supportRepo.countByComplaint(complaint),
+                commentRepo.countByComplaint(complaint));
+    }
+
+    public ComplaintCommunityInteractionDto getDetail(Complaint complaint, Users viewer) {
+
+        long supportCount = supportRepo.countByComplaint(complaint);
+        long commentCount = commentRepo.countByComplaint(complaint);
+
+        boolean supported = false;
+        if (viewer != null) {
+            supported = supportRepo.findByUserAndComplaint(viewer, complaint).isPresent();
+        }
+
+        List<CommunityCommentDTO> comments = commentRepo.findByComplaintOrderByCreatedAtDesc(complaint)
+                .stream()
+                .map(c -> new CommunityCommentDTO(
+                        c.getUser().getUsername(),
+                        c.getComment(),
+                        c.getCreatedAt()))
+                .toList();
+
+        return new ComplaintCommunityInteractionDto(
+                supportCount,
+                commentCount,
+                supported,
+                comments);
+    }
+
+     public ComplaintCommunityDetailDTO getDetail(Complaint complaint) {
+
+        long supportCount = supportRepo.countByComplaint(complaint);
+        long commentCount = commentRepo.countByComplaint(complaint);
+
+        List<CommunityCommentDTO> comments = commentRepo.findByComplaintOrderByCreatedAtDesc(complaint)
+                .stream()
+                .map(c -> new CommunityCommentDTO(
+                        c.getUser().getUsername(),
+                        c.getComment(),
+                        c.getCreatedAt()))
+                .toList();
+
+        return new ComplaintCommunityDetailDTO(
+                supportCount,
+                commentCount,
+                comments);
     }
 }

@@ -10,13 +10,11 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.visioners.civic.complaint.model.Category;
 import com.visioners.civic.complaint.model.IssueSeverity;
 import com.visioners.civic.complaint.model.IssueStatus;
-import com.visioners.civic.complaint.model.Location;
 import com.visioners.civic.complaint.model.SubCategory;
 import com.visioners.civic.staff.entity.Staff;
 import com.visioners.civic.user.entity.Users;
 
 import jakarta.persistence.Column;
-import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -61,10 +59,6 @@ public class Complaint {
     @Column(nullable = false, name = "sub_category")
     private SubCategory subCategory;
     
-    /** Human-readable block/district/state */
-    @Embedded
-    private Location location;
-
     /** GIS coordinate for spatial search */
     @Column(columnDefinition = "geography(Point,4326)", nullable = false)
     @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.GEOMETRY)

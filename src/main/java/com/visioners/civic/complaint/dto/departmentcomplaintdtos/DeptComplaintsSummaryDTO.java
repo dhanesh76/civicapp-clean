@@ -1,8 +1,7 @@
-package com.visioners.civic.complaint.dto.usercomplaintdtos;
+package com.visioners.civic.complaint.dto.departmentcomplaintdtos;
 
 import java.time.Instant;
 
-import com.visioners.civic.community.dto.ComplaintCommunityDetailDTO;
 import com.visioners.civic.complaint.model.IssueSeverity;
 import com.visioners.civic.complaint.model.IssueStatus;
 import com.visioners.civic.complaint.model.Location;
@@ -10,20 +9,22 @@ import com.visioners.civic.complaint.model.Location;
 import lombok.Builder;
 
 @Builder
-public record ComplaintDetailDTO(
+public record DeptComplaintsSummaryDTO(
     String complaintId,
     String description,
+    String category,
+    String subCategory,
     IssueStatus status,
     IssueSeverity severity,
-    Location location,
     String imageUrl,
+    Location location,
+    String assignedBy,
+    String assignedTo,
     Instant createdAt,
     Instant assignedAt,
     Instant resolvedAt,
-    String solutionNote,
     String solutionImageUrl,
-    com.visioners.civic.complaint.dto.feedback.ViewFeedbackDTO feedback,
-    
-    ComplaintCommunityDetailDTO communityDetail
-) {}
 
+    long supportCount,
+    long commentCount
+){}

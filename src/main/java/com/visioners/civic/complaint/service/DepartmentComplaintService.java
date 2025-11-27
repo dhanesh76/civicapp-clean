@@ -13,6 +13,7 @@ import com.visioners.civic.complaint.Specifications.ComplaintSpecification;
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.AssignComplaintDTO;
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.ComplaintViewDTO;
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.DepartmentComplaintStatisticsDTO;
+import com.visioners.civic.complaint.dto.departmentcomplaintdtos.DeptComplaintsSummaryDTO;
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.RejectComplaintDto;
 import com.visioners.civic.complaint.entity.Complaint;
 import com.visioners.civic.complaint.exception.InvalidStatusTransitionException;
@@ -43,7 +44,7 @@ public class DepartmentComplaintService {
     private final ComplaintFeedbackService complaintFeedbackService;
 
     /** View complaints with optional filters */
-    public Page<ComplaintViewDTO> viewDeptComplaints(UserPrincipal principal, Pageable page,
+    public Page<DeptComplaintsSummaryDTO> viewDeptComplaints(UserPrincipal principal, Pageable page,
             IssueSeverity severity, IssueStatus status, Date from, Date to) {
 
         Staff officer = staffService.getStaff(principal.getUser());
@@ -59,7 +60,7 @@ public class DepartmentComplaintService {
 
         Page<Complaint> complaints = complaintRepository.findAll(specification, page);
 
-        return complaints.map(complaintService::mapToComplaintViewDTO);
+        return complaints.map(complaintService::mapToComplaintSummaryDTO);
     }
 
     /** Assign complaint to worker */

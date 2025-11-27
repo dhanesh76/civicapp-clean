@@ -12,6 +12,7 @@ import lombok.Setter;
 @Builder
 @lombok.NoArgsConstructor
 @lombok.AllArgsConstructor
+
 public class Location {
     @Transient
     private Double latitude;
@@ -19,6 +20,8 @@ public class Location {
     @Transient
     private Double longitude;
     
+    private String department;
+    private Long departmentId;
     private String block;        //block
     private String district;    //district
     private String state;       //state

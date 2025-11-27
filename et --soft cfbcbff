@@ -1,0 +1,39 @@
+[33m59f8670[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Finalize local code update
+[33m37467ed[m Restore production resources
+[33mcfbcbff[m Local code update - overwrite GitHub
+[33m28d0d14[m Sync GitHub resources before overwrite
+[33m792a328[m Ignore local resources folder
+[33m0a20787[m Clean codebase after removing secret-containing history
+[33m301d9ee[m Stop tracking application.properties
+[33m3944019[m Create application.properties
+[33md724ef6[m Remove application.properties from tracking (cleanup after merge)
+[33m903f810[m Merge branch 'main' of https://github.com/dhanesh76/civicapp-clean
+[33ma87598f[m[33m ([m[1;31morigin/newfeatures[m[33m, [m[1;32mnewfeatures[m[33m)[m websocket updated
+[33m713fbe4[m Merge branch 'main' into newfeatures
+[33mce01793[m Remove backup dump file from tracking (newfeatures)
+[33me34c812[m Create application.properties
+[33m8b7ce00[m Sync local codebase to main branch (excluding resources)
+[33m7c9d336[m Merge branch 'newfeatures'
+[33m21f817a[m fix: latest changes
+[33m08ef857[m Completed newfeature implementation
+[33m11414fc[m Merge pull request #2 from dhanesh76/newfeatures
+[33mbfc3b73[m Add new features clean (no secrets)
+[33ma4375d6[m Update Dockerfile
+[33m526b38c[m Rename DockerFile to Dockerfile
+[33m6d5ddeb[m Update application.properties
+[33m729b792[m Update DockerFile
+[33m4e46c42[m Add Dockerfile for deployment
+[33m3deee3e[m Update HomeController.java
+[33m63d24f9[m Update HomeController.java
+[33m4eb2dc0[m Update HomeController.java
+[33m0d44164[m Merge branch 'fixed' into main (excluding application.properties)
+[33m118f182[m[33m ([m[1;31morigin/fixed[m[33m)[m Create application.properties
+[33ma793bba[m dusted
+[33m2dd144e[m Update UserComplaintController.java
+[33med58761[m Update FieldWorkerComplaintController.java
+[33m2490729[m Update UserComplaintController.java
+[33m7cb0489[m error free
+[33me310905[m fixed bug
+[33m0fdf959[m fixed version
+[33mabfe7c5[m Create application.properties
+[33ma34c79d[m Initial commit without secrets
