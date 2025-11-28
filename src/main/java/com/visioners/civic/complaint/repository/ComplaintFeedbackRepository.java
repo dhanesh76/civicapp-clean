@@ -18,7 +18,7 @@ public interface ComplaintFeedbackRepository extends JpaRepository<ComplaintFeed
 
     @Query(value = "SELECT AVG(complaint_feedback.rating) " +
             "FROM complaint " +
-            "JOIN complaint_feedback ON complaint.feedback_id = complaint_feedback.id " +
+            "JOIN complaint_feedback ON complaint.id = complaint_feedback.complaint_id " +
             "WHERE complaint.department_id = :deptId", nativeQuery = true)
     public Double findDepartmentAvgRating(@Param("deptId") Long deptId);
 }

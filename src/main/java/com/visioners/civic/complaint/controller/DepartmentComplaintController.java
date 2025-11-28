@@ -87,6 +87,15 @@ public class DepartmentComplaintController {
         return ResponseEntity.ok(departmentComplaintService.getComplaintByComplaintIdDetail(principal, complaintId));
     }
 
+    @GetMapping("/analytics")
+    public ResponseEntity<com.visioners.civic.complaint.dto.departmentcomplaintdtos.DepartmentAnalyticsDTO> getDepartmentAnalytics(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date to
+    ) {
+        return ResponseEntity.ok(departmentComplaintService.getDepartmentAnalytics(principal, from, to));
+    }
+
     // @GetMapping("/rejected-complaints")
     // public ResponseEntity<Page<ComplaintViewDTO>> getRejectedComplaints(
     //         @AuthenticationPrincipal UserPrincipal principal,
