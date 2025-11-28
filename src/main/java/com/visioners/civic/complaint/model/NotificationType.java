@@ -6,4 +6,5 @@ public enum NotificationType {
     REJECTED_COMPLAINT,
     APPROVED_COMPLAINT,
     ASSIGNED_COMPLAINT,
+    REOPENED_COMPLAINT
 }

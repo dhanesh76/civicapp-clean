@@ -3,6 +3,7 @@ package com.visioners.civic.complaint.service;
 import java.io.IOException;
 import java.util.Date;
 import java.util.Objects;
+import java.util.Optional;
 
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
@@ -16,7 +17,6 @@ import com.visioners.civic.auth.userdetails.UserPrincipal;
 import com.visioners.civic.aws.S3Service;
 import com.visioners.civic.community.service.CommunityInteractionService;
 import com.visioners.civic.complaint.Specifications.ComplaintSpecification;
-import com.visioners.civic.complaint.dto.feedback.ViewFeedbackDTO;
 import com.visioners.civic.complaint.dto.usercomplaintdtos.*;
 import com.visioners.civic.complaint.entity.*;
 import com.visioners.civic.exception.*;
@@ -43,9 +43,8 @@ public class UserComplaintService {
         private final ComplaintAudioRepository complaintAudioRepository;
         private final ComplaintIdGenerator complaintIdGenerator;
         private final ComplaintNotificationService notificationService;
-        private final ComplaintFeedbackService complaintFeedbackService;
         private final CommunityInteractionService communityInteractionService;
-        
+        private final ComplaintAudioRepository audioRepository;
         /** Raise a new complaint */
         public ComplaintRaiseResponseDTO raiseComplaint(
                         ComplaintRaiseRequest request,
@@ -105,7 +104,6 @@ public class UserComplaintService {
                                 .complaintId(complaintId)
                                 .description(request.description())
                                 .severity(severity)
-                                .location(location)
                                 .locationPoint(pt)
                                 .imageUrl(imageUrl)
                                 .category(category)
@@ -168,8 +166,7 @@ public class UserComplaintService {
                                                 .complaintId(c.getComplaintId())
                                                 .status(c.getStatus())
                                                 .severity(c.getSeverity())
-                                                .location(ComplaintService.convertToLocation(c.getLocation(),
-                                                                c.getLocationPoint()))
+                                                .location(ComplaintService.convertToLocation(c))
                                                 .supportCount(communityInteractionService.getSupportCount(c))
                                                 .commentCount(communityInteractionService.getCommentCount(c))
                                                 .createdAt(c.getCreatedAt())
@@ -185,22 +182,18 @@ public class UserComplaintService {
                 if (!complaint.getRaisedBy().getId().equals(principal.getUser().getId())) {
                         throw new AccessDeniedException("You do not own this complaint");
                 }
-
-                  ComplaintFeedback  fb = complaintFeedbackService.getFeedbacks(complaint.getRaisedBy(), complaint).orElse(null);
-                        ViewFeedbackDTO fbDto = fb ==  null ?  null : new ViewFeedbackDTO(
-                        fb.getComment(),
-                        fb.getRating(),
-                        fb.getCreatedAt()
-                        );
+ 
+                Optional<ComplaintAudio> audioOpt  = audioRepository.findByComplaintId(complaint.getId());
+                String audioUrl = audioOpt.isEmpty() ? null : audioOpt.get().getAudioUrl();
 
                 return ComplaintDetailDTO.builder()
                                 .complaintId(complaint.getComplaintId())
                                 .description(complaint.getDescription())
                                 .status(complaint.getStatus())
                                 .severity(complaint.getSeverity())
+                                .audioUrl(audioUrl)
                                 .location(
-                                        ComplaintService.convertToLocation(complaint.getLocation(),
-                                                complaint.getLocationPoint())
+                                        ComplaintService.convertToLocation(complaint)
                                         )
                                 .imageUrl(complaint.getImageUrl())
                                 .createdAt(complaint.getCreatedAt())
@@ -212,7 +205,7 @@ public class UserComplaintService {
                                 .solutionImageUrl(complaint.getStatus() == IssueStatus.RESOLVED
                                                 ? complaint.getSolutionImageUrl()
                                                 : null)
-                                .feedback(fbDto)
+                                .communityDetail(communityInteractionService.getDetail(complaint))
                                 .build();
         }
 

@@ -52,7 +52,7 @@ public class ComplaintFeedbackService {
                 complaintFeedback.getCreatedAt());
     }
 
-    public Double findDepartmentAvgRating(Long departmentId){
+    public double findDepartmentAvgRating(Long departmentId){
         return feedbackRepository.findDepartmentAvgRating(departmentId);
     }
 

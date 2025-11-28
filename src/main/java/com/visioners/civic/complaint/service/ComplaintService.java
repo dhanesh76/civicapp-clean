@@ -1,10 +1,12 @@
 package com.visioners.civic.complaint.service;
 
-import org.locationtech.jts.geom.Point;
+
 import org.springframework.stereotype.Service;
 
+import com.visioners.civic.community.service.CommunityInteractionService;
 import com.visioners.civic.complaint.dto.ComplaintView;
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.ComplaintViewDTO;
+import com.visioners.civic.complaint.dto.departmentcomplaintdtos.DeptComplaintsSummaryDTO;
 import com.visioners.civic.complaint.entity.Complaint;
 import com.visioners.civic.complaint.entity.ComplaintFeedback;
 import com.visioners.civic.complaint.model.Location;
@@ -20,7 +22,8 @@ public class ComplaintService {
 
     private final ComplaintRepository complaintRepository;
     private final ComplaintFeedbackService complaintFeedbackService;
-    
+    private final CommunityInteractionService communityInteractionService;
+
     public Complaint getComplaintByComplaintId(String complaintId){
         return complaintRepository.findByComplaintId(complaintId)
             .orElseThrow(() -> new  ComplaintNotFoundException ("no complaint exists with id: " + complaintId));
@@ -38,8 +41,41 @@ public class ComplaintService {
                     .status(complaint.getStatus())
                     .solutionImageUrl(complaint.getSolutionImageUrl())
                     .solutionNote(complaint.getSolutionNote())
-                    .location(convertToLocation(complaint.getLocation(), complaint.getLocationPoint()))
+                    .location(convertToLocation(complaint))
                     .build();
+    }
+
+    public DeptComplaintsSummaryDTO mapToComplaintSummaryDTO(Complaint complaint) {
+        if (complaint == null) {
+            return null;
+        }
+
+        return DeptComplaintsSummaryDTO.builder()
+                .complaintId(complaint.getComplaintId())
+                .description(complaint.getDescription())
+                .status(complaint.getStatus())
+                .severity(complaint.getSeverity() != null ? complaint.getSeverity() : null)
+                .location(convertToLocation(complaint))
+                .assignedBy(
+                    complaint.getAssignedBy() != null 
+                        ? complaint.getAssignedBy().getUser().getUsername()
+                        : null
+                )
+                .assignedTo(
+                    complaint.getAssignedTo() != null 
+                        ? complaint.getAssignedTo().getUser().getUsername()
+                        : null
+                )
+                .category(complaint.getCategory().name())
+                .subCategory(complaint.getSubCategory().name())
+                .imageUrl(complaint.getImageUrl())
+                .createdAt(complaint.getCreatedAt())
+                .assignedAt(complaint.getAssignedAt())
+                .resolvedAt(complaint.getResolvedAt())
+                .solutionImageUrl(complaint.getSolutionImageUrl())
+                .commentCount(communityInteractionService.getCommentCount(complaint))
+                .supportCount(communityInteractionService.getSupportCount(complaint))
+                .build();
     }
 
     public ComplaintViewDTO mapToComplaintViewDTO(Complaint complaint) {
@@ -59,7 +95,7 @@ public class ComplaintService {
                 .description(complaint.getDescription())
                 .status(complaint.getStatus())
                 .severity(complaint.getSeverity() != null ? complaint.getSeverity() : null)
-                .location(convertToLocation(complaint.getLocation(), complaint.getLocationPoint()))
+                .location(convertToLocation(complaint))
                 .assignedBy(
                     complaint.getAssignedBy() != null 
                         ? complaint.getAssignedBy().getUser().getUsername()
@@ -78,26 +114,21 @@ public class ComplaintService {
                 .solutionImageUrl(complaint.getSolutionImageUrl())
                 .rejectionNote(complaint.getRejectionNote())
                 .feedback(fbDto)
+                .category(complaint.getCategory().name())
+                .subCategory(complaint.getSubCategory().name())
+                .communityDetails(communityInteractionService.getDetail(complaint))
                 .build();
     }
 
-    public static Location convertToLocation(Location location, Point point){
-        Location.LocationBuilder builder = Location.builder();
+    public static Location convertToLocation(Complaint complaint){
 
-        if (location != null) {
-            builder.block(location.getBlock())
-                   .district(location.getDistrict())
-                   .state(location.getState());
-        }
-
-        if (point != null) {
-            builder.longitude(point.getX())
-                    .latitude(point.getY());
-        } else if (location != null) {
-            // if the persisted point is missing, fall back to any lat/lon present in the embeddable
-            builder.longitude(location.getLongitude())
-                    .latitude(location.getLatitude());
-        }
-        return builder.build();
+        return Location.builder()
+                        .block(complaint.getBlock().getName())
+                        .district(complaint.getDistrict().getName())
+                        .department(complaint.getDepartment().getName())
+                        .departmentId(complaint.getDepartment().getId())
+                        .latitude(complaint.getLocationPoint().getY())
+                        .longitude(complaint.getLocationPoint().getX())
+                        .build();
     }
 }

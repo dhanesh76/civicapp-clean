@@ -18,7 +18,7 @@ public interface CommunityComplaintRepository extends JpaRepository<Complaint, L
                 ST_SetSRID(ST_MakePoint(:lon, :lat), 4326),
                 :radius
             )
-            AND raised_by_id != :user_id
+            AND raised_by_id != :userId
             
             """, countQuery = """
             SELECT count(*) FROM complaint
@@ -27,6 +27,8 @@ public interface CommunityComplaintRepository extends JpaRepository<Complaint, L
                 ST_SetSRID(ST_MakePoint(:lon, :lat), 4326),
                 :radius
             )
+            AND raised_by_id != :userId
+            
             """, nativeQuery = true)
     Page<Complaint> findNearby(
             @Param("userId") Long userId,

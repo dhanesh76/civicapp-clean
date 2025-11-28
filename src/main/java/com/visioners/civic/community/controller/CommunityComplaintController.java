@@ -10,8 +10,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.visioners.civic.auth.userdetails.UserPrincipal;
+import com.visioners.civic.community.dto.CommunityComplaintView;
 import com.visioners.civic.community.service.CommunityComplaintService;
-import com.visioners.civic.complaint.dto.departmentcomplaintdtos.ComplaintViewDTO;
+ 
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,7 +26,7 @@ public class CommunityComplaintController {
     private final CommunityComplaintService communityService;
 
     @GetMapping
-    public ResponseEntity<Page<ComplaintViewDTO>> getNearbyComplaints(
+    public ResponseEntity<Page<CommunityComplaintView>> getNearbyComplaints(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam double lat,
             @RequestParam double lon,

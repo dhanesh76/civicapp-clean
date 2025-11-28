@@ -19,6 +19,7 @@ import com.visioners.civic.auth.userdetails.UserPrincipal;
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.AssignComplaintDTO;
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.ComplaintViewDTO;
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.DepartmentComplaintStatisticsDTO;
+import com.visioners.civic.complaint.dto.departmentcomplaintdtos.DeptComplaintsSummaryDTO;
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.RejectComplaintDto;
 import com.visioners.civic.complaint.model.IssueSeverity;
 import com.visioners.civic.complaint.model.IssueStatus;
@@ -35,7 +36,7 @@ public class DepartmentComplaintController {
     private final DepartmentComplaintService departmentComplaintService;
 
     @GetMapping
-    public ResponseEntity<Page<ComplaintViewDTO>> viewDeptComplaints(
+    public ResponseEntity<Page<DeptComplaintsSummaryDTO>> viewDeptComplaints(
             @AuthenticationPrincipal UserPrincipal principal,
             Pageable page,
             @RequestParam(required = false) IssueSeverity severity,
