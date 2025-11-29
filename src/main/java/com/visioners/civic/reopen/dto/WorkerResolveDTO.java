@@ -9,4 +9,8 @@ public class WorkerResolveDTO {
     private String solutionNote;
     private Double lat;
     private Double lon;
+
+    public String getParentComplaintId() {
+        return complaintId;
+    }
 }

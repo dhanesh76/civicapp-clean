@@ -22,6 +22,7 @@ import com.visioners.civic.complaint.entity.Complaint;
 import com.visioners.civic.complaint.model.IssueSeverity;
 import com.visioners.civic.complaint.model.IssueStatus;
 import com.visioners.civic.complaint.model.NotificationType;
+import com.visioners.civic.complaint.model.ReopenStatus;
 import com.visioners.civic.complaint.repository.ComplaintRepository;
 import com.visioners.civic.notification.ComplaintNotificationService;
 import com.visioners.civic.staff.entity.Staff;
@@ -44,6 +45,7 @@ public class FieldWorkerComplaintService {
     private final ComplaintNotificationService notificationService;
     private final ComplaintAuditService auditService;
     private final com.visioners.civic.reopen.repository.ReopenComplaintRepository reopenComplaintRepository;
+    
     public Page<ComplaintView> viewAssignedComplaints(UserPrincipal principal,
             Pageable page,
             IssueSeverity severity,
@@ -52,7 +54,8 @@ public class FieldWorkerComplaintService {
         Staff staff = staffService.getStaff(principal.getUser());
 
         Specification<Complaint> specification = ComplaintSpecification
-                .getComplaintSpecification(severity, null, from, to)
+                .getComplaintSpecification(severity, null, from, to);
+        specification = specification
                 .and(ComplaintSpecification.hasAssignedTo(staff));
 
         Page<Complaint> complaints = complaintRepository.findAll(specification, page);
@@ -136,7 +139,8 @@ public class FieldWorkerComplaintService {
         Staff worker = staffService.getStaff(principal.getUser());
         
         Specification<Complaint> specification = ComplaintSpecification.hasAssignedTo(worker)
-                .and(ComplaintSpecification.hasRejected());
+                .and(ComplaintSpecification.hasRejected())
+                .and(ComplaintSpecification.hasStatus(ReopenStatus.ASSIGNED));
 
         Page<Complaint> complaints = complaintRepository.findAll(specification, page);
 

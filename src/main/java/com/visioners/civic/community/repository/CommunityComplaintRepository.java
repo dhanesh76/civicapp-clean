@@ -12,28 +12,31 @@ import com.visioners.civic.complaint.entity.Complaint;
 @Repository
 public interface CommunityComplaintRepository extends JpaRepository<Complaint, Long> {
     @Query(value = """
-            SELECT * FROM complaint
-            WHERE ST_DWithin(
-                location_point,
-                ST_SetSRID(ST_MakePoint(:lon, :lat), 4326),
-                :radius
-            )
-            AND raised_by_id != :userId
-            
-            """, countQuery = """
-            SELECT count(*) FROM complaint
-            WHERE ST_DWithin(
-                location_point,
-                ST_SetSRID(ST_MakePoint(:lon, :lat), 4326),
-                :radius
-            )
-            AND raised_by_id != :userId
-            
-            """, nativeQuery = true)
-    Page<Complaint> findNearby(
-            @Param("userId") Long userId,
-            @Param("lat") double lat,
-            @Param("lon") double lon,
-            @Param("radius") double radius,
-            Pageable pageable);
+    SELECT *
+    FROM complaint
+    WHERE ST_DWithin(
+        location_point,
+        ST_SetSRID(ST_MakePoint(:lon, :lat), 4326),
+        :radius
+    )
+    AND raised_by_id != :userId
+    """,
+    countQuery = """
+    SELECT count(*)
+    FROM complaint
+    WHERE ST_DWithin(
+        location_point,
+        ST_SetSRID(ST_MakePoint(:lon, :lat), 4326),
+        :radius
+    )
+    AND raised_by_id != :userId
+    """,
+    nativeQuery = true)
+Page<Complaint> findNearby(
+        @Param("userId") Long userId,
+        @Param("lat") double lat,
+        @Param("lon") double lon,
+        @Param("radius") double radius,
+        Pageable pageable);
+
 }

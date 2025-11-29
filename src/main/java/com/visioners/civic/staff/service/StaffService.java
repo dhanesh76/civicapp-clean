@@ -132,7 +132,9 @@ public class StaffService {
                 Staff fieldWorker = staffRepository.findById(staffId)
                                 .orElseThrow(() -> new EntityNotFoundException("Staff not found with ID: " + staffId));
 
-                if (officer.getDepartment().getId() != fieldWorker.getDepartment().getId()) {
+                Long officerDept = officer.getDepartment() == null ? null : officer.getDepartment().getId();
+                Long workerDept = fieldWorker.getDepartment() == null ? null : fieldWorker.getDepartment().getId();
+                if (officerDept == null || workerDept == null || !officerDept.equals(workerDept)) {
                         throw new EntityNotFoundException(
                                         "Staff not found with ID: " + staffId + " under your jurisdiction");
                 }

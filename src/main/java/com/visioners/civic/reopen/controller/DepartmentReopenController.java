@@ -111,6 +111,5 @@ public class DepartmentReopenController {
 
         return ResponseEntity.ok(dto);
     }
-
 }
 

@@ -84,7 +84,8 @@ public class DepartmentComplaintService {
 
             // confirm officer department ownership
             Long reopenDeptId = reopen.getDepartment() == null ? (reopen.getParentComplaint().getDepartment() == null ? null : reopen.getParentComplaint().getDepartment().getId()) : reopen.getDepartment().getId();
-            if (reopenDeptId == null || !reopenDeptId.equals(officer.getDepartment().getId())) {
+            Long officerDeptIdCheck = officer.getDepartment() == null ? null : officer.getDepartment().getId();
+            if (reopenDeptId == null || officerDeptIdCheck == null || !reopenDeptId.equals(officerDeptIdCheck)) {
                 throw new IllegalArgumentException("Reopen complaint does not belong to your department");
             }
 
@@ -157,7 +158,8 @@ public class DepartmentComplaintService {
 
         // department access
         Long reopenDeptId = reopen.getDepartment() == null ? (reopen.getParentComplaint().getDepartment() == null ? null : reopen.getParentComplaint().getDepartment().getId()) : reopen.getDepartment().getId();
-        if (reopenDeptId == null || !reopenDeptId.equals(officer.getDepartment().getId())) {
+        Long officerDeptIdCheck = officer.getDepartment() == null ? null : officer.getDepartment().getId();
+        if (reopenDeptId == null || officerDeptIdCheck == null || !reopenDeptId.equals(officerDeptIdCheck)) {
             throw new IllegalArgumentException("Reopen complaint does not belong to your department");
         }
 
@@ -217,7 +219,8 @@ public class DepartmentComplaintService {
                 .orElseThrow(() -> new com.visioners.civic.complaint.exception.ResourceNotFoundException("Reopen complaint not found"));
 
         Long reopenDeptId = reopen.getDepartment() == null ? (reopen.getParentComplaint().getDepartment() == null ? null : reopen.getParentComplaint().getDepartment().getId()) : reopen.getDepartment().getId();
-        if (reopenDeptId == null || !reopenDeptId.equals(officer.getDepartment().getId())) {
+        Long officerDeptIdCheck = officer.getDepartment() == null ? null : officer.getDepartment().getId();
+        if (reopenDeptId == null || officerDeptIdCheck == null || !reopenDeptId.equals(officerDeptIdCheck)) {
             throw new IllegalArgumentException("Reopen complaint does not belong to your department");
         }
 
@@ -281,67 +284,6 @@ public class DepartmentComplaintService {
         return complaintService.mapToComplaintViewDTO(complaint);
     }
 
-    /** Approve a reopen request by reopenId */
-    public ComplaintViewDTO approveReopen(UserPrincipal principal, String reopenId) {
-        Staff officer = staffService.getStaff(principal.getUser());
-
-        ReopenComplaint reopen = reopenComplaintRepository.findByReopenId(reopenId)
-                .orElseThrow(() -> new ResourceNotFoundException("Reopen complaint not found"));
-
-        // department ownership check
-        Long reopenDeptId = reopen.getDepartment() == null ? (reopen.getParentComplaint().getDepartment() == null ? null : reopen.getParentComplaint().getDepartment().getId()) : reopen.getDepartment().getId();
-
-        if (reopenDeptId == null || !reopenDeptId.equals(officer.getDepartment().getId())) {
-            throw new IllegalArgumentException("Reopen complaint does not belong to your department");
-        }
-
-        // approve parent complaint
-        Complaint complaint = reopen.getParentComplaint();
-
-        // ensure approval preconditions similar to approveComplaint
-        validateApproval(complaint, officer);
-
-        complaint.setRejected(false);
-        complaint.setStatus(IssueStatus.CLOSED);
-        complaint.setActionedBy(officer);
-
-        complaintRepository.save(complaint);
-
-        // mark reopen as closed/approved
-        reopen.setStatus(com.visioners.civic.complaint.model.ReopenStatus.CLOSED);
-        reopen.setBaDecisionBy(officer);
-        reopen.setBaDecisionAt(Instant.now());
-        reopenComplaintRepository.save(reopen);
-
-        // notifications and audit similar to approveComplaint
-        smsService.sendSms(
-            complaint.getRaisedBy().getMobileNumber(),
-            "Your complaint (" + complaint.getComplaintId() + ") has been approved and officially closed. Thank you for helping improve our community!"
-        );
-
-        notificationService.notifyUser(complaint.getComplaintId(), complaint.getRaisedBy().getId(), NotificationType.APPROVED_COMPLAINT);
-        notificationService.notifyFieldWorker(complaint.getComplaintId(), complaint.getAssignedTo().getUser().getId(), NotificationType.APPROVED_COMPLAINT);
-
-        try {
-            auditService.log(
-                    complaint.getId(),
-                    null,
-                    ActionType.OFFICER_APPROVED,
-                    ActorType.OFFICER,
-                    officer.getUser().getId(),
-                    IssueStatus.RESOLVED.name(),
-                    complaint.getStatus().name(),
-                    "",
-                    complaint.getSolutionImageUrl(),
-                    null,
-                    complaint.getLocationPoint().getY(),
-                    complaint.getLocationPoint().getX());
-        } catch (Exception ex) {
-            // ignore
-        }
-
-        return complaintService.mapToComplaintViewDTO(complaint);
-    }
 
     /** Reject resolved complaint */
     public ComplaintViewDTO rejectComplaint(UserPrincipal principal, RejectComplaintDto dto) {
@@ -352,7 +294,8 @@ public class DepartmentComplaintService {
                     .orElseThrow(() -> new ResourceNotFoundException("Reopen complaint not found"));
 
             Long reopenDeptId = reopen.getDepartment() == null ? (reopen.getParentComplaint().getDepartment() == null ? null : reopen.getParentComplaint().getDepartment().getId()) : reopen.getDepartment().getId();
-            if (reopenDeptId == null || !reopenDeptId.equals(officer.getDepartment().getId())) {
+            Long officerDeptIdCheck = officer.getDepartment() == null ? null : officer.getDepartment().getId();
+            if (reopenDeptId == null || officerDeptIdCheck == null || !reopenDeptId.equals(officerDeptIdCheck)) {
                 throw new IllegalArgumentException("Reopen complaint does not belong to your department");
             }
 
@@ -419,7 +362,8 @@ public class DepartmentComplaintService {
         long resolved = complaintRepository.count(spec.and(ComplaintSpecification.hasStatus(IssueStatus.RESOLVED)));
         long rejected = complaintRepository.count(spec.and(ComplaintSpecification.hasRejected()));
         long closed = complaintRepository.count(spec.and(ComplaintSpecification.hasStatus(IssueStatus.CLOSED)));
-        double avgRating = complaintFeedbackService.findDepartmentAvgRating(officer.getDepartment().getId());
+        Long officerDeptId = officer.getDepartment() == null ? null : officer.getDepartment().getId();
+        double avgRating = complaintFeedbackService.findDepartmentAvgRating(officerDeptId);
         
         return DepartmentComplaintStatisticsDTO.builder()
                 .totalComplaints(total)
@@ -439,7 +383,9 @@ public class DepartmentComplaintService {
         Complaint complaint = complaintRepository.findByComplaintId(complaintId)
                 .orElseThrow(() -> new ResourceNotFoundException("Complaint not found"));
 
-        if (!complaint.getDepartment().getId().equals(officer.getDepartment().getId())) {
+        Long complaintDeptId = complaint.getDepartment() == null ? null : complaint.getDepartment().getId();
+        Long officerDeptIdLocal = officer.getDepartment() == null ? null : officer.getDepartment().getId();
+        if (complaintDeptId == null || officerDeptIdLocal == null || !complaintDeptId.equals(officerDeptIdLocal)) {
             throw new IllegalArgumentException("Complaint does not belong to your department");
         }
 
@@ -454,8 +400,13 @@ public class DepartmentComplaintService {
         java.time.Instant toInst = to == null ? null : to.toInstant();
 
         // Build dynamic Specification so we only bind non-null parameters to SQL.
-        org.springframework.data.jpa.domain.Specification<com.visioners.civic.complaint.entity.ReopenComplaint> spec =
-                (root, query, cb) -> cb.equal(root.get("department").get("id"), officer.getDepartment().getId());
+        Long officerDeptForSpec = officer.getDepartment() == null ? null : officer.getDepartment().getId();
+        org.springframework.data.jpa.domain.Specification<com.visioners.civic.complaint.entity.ReopenComplaint> spec;
+        if (officerDeptForSpec == null) {
+            spec = (root, query, cb) -> cb.isNull(root.get("department"));
+        } else {
+            spec = (root, query, cb) -> cb.equal(root.get("department").get("id"), officerDeptForSpec);
+        }
 
         if (fromInst != null) {
             spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("createdAt"), fromInst));
@@ -481,8 +432,8 @@ public class DepartmentComplaintService {
 
         // Determine department ownership: reopen may have explicit department or inherit from parent complaint
         Long reopenDeptId = reopen.getDepartment() == null ? (reopen.getParentComplaint().getDepartment() == null ? null : reopen.getParentComplaint().getDepartment().getId()) : reopen.getDepartment().getId();
-
-        if (reopenDeptId == null || !reopenDeptId.equals(officer.getDepartment().getId())) {
+        Long officerDeptIdCheck = officer.getDepartment() == null ? null : officer.getDepartment().getId();
+        if (reopenDeptId == null || officerDeptIdCheck == null || !reopenDeptId.equals(officerDeptIdCheck)) {
             throw new IllegalArgumentException("Reopen complaint does not belong to your department");
         }
 
@@ -505,11 +456,11 @@ public class DepartmentComplaintService {
 
     // ---------------- Validation Methods ----------------
     private void validateAssignment(Complaint complaint, Staff officer, Staff worker) {
-        if (!complaint.getDepartment().equals(officer.getDepartment())) {
+        if (complaint.getDepartment() == null || officer.getDepartment() == null || !complaint.getDepartment().equals(officer.getDepartment())) {
             throw new InvalidAssignmentException("Complaint does not belong to your department");
         }
 
-        if (!worker.getDepartment().equals(officer.getDepartment())) {
+        if (worker.getDepartment() == null || officer.getDepartment() == null || !worker.getDepartment().equals(officer.getDepartment())) {
             throw new InvalidAssignmentException("Worker does not belong to your department");
         }
         
