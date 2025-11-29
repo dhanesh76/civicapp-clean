@@ -39,4 +39,21 @@ public interface ComplaintRepository extends JpaRepository<Complaint, Long>, Jpa
             @Param("lat") double lat,
             @Param("lon") double lon,
             @Param("radius") double radius);
+    
+    @Query("""
+        SELECT c FROM Complaint c
+        WHERE c.block.id = :blockId
+        AND c.status = com.visioners.civic.complaint.model.IssueStatus.PENDING
+        ORDER BY c.createdAt DESC
+    """)
+    Page<Complaint> findMLUnknownComplaints(Long blockId, Pageable pageable);
+
+
+    @Query("""
+        SELECT c FROM Complaint c 
+        WHERE c.block.id = :blockId
+        AND c.reopenCount >= 2
+        ORDER BY c.createdAt DESC
+    """)
+    Page<Complaint> findReopenedComplaints(Long blockId, Pageable pageable);
 }

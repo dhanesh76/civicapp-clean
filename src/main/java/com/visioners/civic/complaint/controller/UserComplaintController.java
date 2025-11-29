@@ -2,9 +2,7 @@ package com.visioners.civic.complaint.controller;
 
 import java.io.IOException;
 import java.util.Date;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.SortDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -30,6 +28,7 @@ import com.visioners.civic.complaint.dto.usercomplaintdtos.ComplaintSummaryDTO;
 import com.visioners.civic.complaint.model.IssueSeverity;
 import com.visioners.civic.complaint.model.IssueStatus;
 import com.visioners.civic.complaint.service.UserComplaintService;
+import org.springframework.data.domain.*;
 
 import lombok.RequiredArgsConstructor;
 
@@ -58,9 +57,9 @@ public class UserComplaintController {
 
     /** Paginated complaints for user with optional filters */
     @GetMapping
-    public ResponseEntity<Page<ComplaintSummaryDTO>> getAllComplaints(
+        public ResponseEntity<Page<ComplaintSummaryDTO>> getAllComplaints(
             @AuthenticationPrincipal UserPrincipal principal,
-            Pageable page,
+            @SortDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable page,
             @RequestParam(required = false) IssueSeverity severity,
             @RequestParam(required = false) IssueStatus status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date from,

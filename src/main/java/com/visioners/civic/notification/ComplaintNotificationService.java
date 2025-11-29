@@ -35,6 +35,11 @@ public class ComplaintNotificationService {
         send("/topic/worker/" + workerId, type, complaintId);
     }
 
+    @Async("asyncExecutor")
+    public void notifyBlockAdmin(String complaintId, Long blockId, NotificationType type) {
+        send("/topic/block/" + blockId, type, complaintId);
+    }
+
     private void send(@NonNull String destination, NotificationType type, String complaintId) {
         
         Objects.requireNonNull(destination);

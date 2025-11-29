@@ -92,7 +92,7 @@ public class Complaint {
 
     /** Department responsible for handling */
     @ManyToOne
-    @JoinColumn(name = "department_id", nullable = false)
+    @JoinColumn(name = "department_id", nullable = true)
     private Department department;
 
     /** Officer who assigned it */
@@ -141,4 +141,12 @@ public class Complaint {
     @UpdateTimestamp
     @Column(nullable = false)
     private Instant updatedAt;
+
+    @Builder.Default
+    @Column(name = "reopen_count", nullable = false, columnDefinition = "integer default 0")
+    private int reopenCount = 0;
+
+    @Builder.Default
+    @Column(name = "reopen_blocked", nullable = false)
+    private boolean reopenBlocked = false;
 }

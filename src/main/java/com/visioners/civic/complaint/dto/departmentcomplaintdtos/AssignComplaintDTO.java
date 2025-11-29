@@ -13,6 +13,9 @@ public class AssignComplaintDTO {
 
 	@NotNull(message = "workerId is required")
 	private Long workerId;
+
+    // Optional: when assigning in context of a ReopenComplaint
+    private String reopenId;
 }
 
 
