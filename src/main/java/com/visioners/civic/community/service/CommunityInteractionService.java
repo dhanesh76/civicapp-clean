@@ -17,6 +17,9 @@ import com.visioners.civic.complaint.entity.Complaint;
 import com.visioners.civic.complaint.exception.ComplaintNotFoundException;
 import com.visioners.civic.complaint.repository.ComplaintRepository;
 import com.visioners.civic.user.entity.Users;
+import com.visioners.civic.complaint.service.ComplaintAuditService;
+import com.visioners.civic.complaint.model.ActionType;
+import com.visioners.civic.complaint.model.ActorType;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +31,7 @@ public class CommunityInteractionService {
     private final CommunitySupportRepository supportRepo;
     private final CommunityCommentRepository commentRepo;
     private final ComplaintRepository complaintRepo;
+        private final ComplaintAuditService auditService;
 
     /** SUPPORT / UNSUPPORT toggle */
     @Transactional
@@ -41,6 +45,23 @@ public class CommunityInteractionService {
         if (existing.isPresent()) {
             // Undo support
             supportRepo.delete(existing.get());
+                        try {
+                                auditService.log(
+                                                complaint.getId(),
+                                                null,
+                                                ActionType.COMMUNITY_SUPPORT_TOGGLED,
+                                                ActorType.USER,
+                                                user.getId(),
+                                                complaint.getStatus().name(),
+                                                complaint.getStatus().name(),
+                                                "UNSUPPORTED",
+                                                null,
+                                                null,
+                                                complaint.getLocationPoint().getY(),
+                                                complaint.getLocationPoint().getX());
+                        } catch (Exception ex) {
+                                // continue
+                        }
             return false; // now NOT supported
         }
 
@@ -50,6 +71,23 @@ public class CommunityInteractionService {
                         .user(user)
                         .complaint(complaint)
                         .build());
+        try {
+            auditService.log(
+                    complaint.getId(),
+                    null,
+                    ActionType.COMMUNITY_SUPPORT_TOGGLED,
+                    ActorType.USER,
+                    user.getId(),
+                    complaint.getStatus().name(),
+                    complaint.getStatus().name(),
+                    "SUPPORTED",
+                    null,
+                    null,
+                    complaint.getLocationPoint().getY(),
+                    complaint.getLocationPoint().getX());
+        } catch (Exception ex) {
+            // continue
+        }
 
         return true; // now supported
     }
@@ -68,6 +106,23 @@ public class CommunityInteractionService {
                 .build();
         
         commentRepo.save(comment);
+                try {
+                        auditService.log(
+                                        complaint.getId(),
+                                        null,
+                                        ActionType.COMMUNITY_COMMENT_ADDED,
+                                        ActorType.USER,
+                                        user.getId(),
+                                        complaint.getStatus().name(),
+                                        complaint.getStatus().name(),
+                                        comment.getComment(),
+                                        null,
+                                        null,
+                                        complaint.getLocationPoint().getY(),
+                                        complaint.getLocationPoint().getX());
+                } catch (Exception ex) {
+                        // continue
+                }
         return new CommunityCommentDTO(comment.getUser().getUsername(), comment.getComment(), comment.getCreatedAt());
     }
 

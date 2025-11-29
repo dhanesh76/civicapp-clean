@@ -38,7 +38,7 @@ public class Staff {
     private District district;
 
     @ManyToOne
-    @JoinColumn(name = "block_id", nullable = false)
+    @JoinColumn(name = "block_id", nullable = true)
     @JsonManagedReference
     private Block block;
 

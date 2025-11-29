@@ -36,6 +36,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/departments/complaints/**").hasRole("OFFICER")
                         .requestMatchers("/api/workers/complaints/**").hasRole("FIELD_WORKER")
                         .requestMatchers("/api/users/complaints/**").hasRole("USER")
+                        .requestMatchers("/api/blocks/**").hasRole("BLOCK_ADMIN")
                         .requestMatchers("/ws/**").permitAll()        // allow websocket handshake
                         .requestMatchers("/topic/**").permitAll()     // allow broker messages
                         .requestMatchers("/app/**").permitAll()       // stomp app prefix

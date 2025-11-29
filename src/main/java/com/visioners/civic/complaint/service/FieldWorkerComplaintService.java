@@ -26,6 +26,8 @@ import com.visioners.civic.complaint.repository.ComplaintRepository;
 import com.visioners.civic.notification.ComplaintNotificationService;
 import com.visioners.civic.staff.entity.Staff;
 import com.visioners.civic.staff.service.StaffService;
+import com.visioners.civic.complaint.model.ActionType;
+import com.visioners.civic.complaint.model.ActorType;
 
 import lombok.RequiredArgsConstructor;
 
@@ -40,6 +42,8 @@ public class FieldWorkerComplaintService {
     private final ComplaintService complaintService;
     private final S3Service s3Service;
     private final ComplaintNotificationService notificationService;
+    private final ComplaintAuditService auditService;
+    private final com.visioners.civic.reopen.repository.ReopenComplaintRepository reopenComplaintRepository;
     public Page<ComplaintView> viewAssignedComplaints(UserPrincipal principal,
             Pageable page,
             IssueSeverity severity,
@@ -65,8 +69,8 @@ public class FieldWorkerComplaintService {
 
         validateResolve(worker, complaint);
 
-        boolean isWithin = complaintRepository.isWorkerWithinDistance(resolveComplaintDto.complaintId(),
-                resolveComplaintDto.lat(), resolveComplaintDto.lon(), WORKER_RADIUS);
+        boolean isWithin = Boolean.TRUE.equals(complaintRepository.isWorkerWithinDistance(resolveComplaintDto.complaintId(),
+            resolveComplaintDto.lat(), resolveComplaintDto.lon(), WORKER_RADIUS));
 
         if (!isWithin) {
             throw new com.visioners.civic.exception.InvalidAssignmentException("Worker must be within 50 meters of complaint location to resolve it.");
@@ -81,10 +85,39 @@ public class FieldWorkerComplaintService {
 
         complaintRepository.save(complaint);
 
+        // If this resolution is for a reopen request, update reopen status
+        if (resolveComplaintDto.reopenId() != null && !resolveComplaintDto.reopenId().isBlank()) {
+            com.visioners.civic.complaint.entity.ReopenComplaint reopen = reopenComplaintRepository
+                .findByReopenId(resolveComplaintDto.reopenId())
+                .orElseThrow(() -> new com.visioners.civic.complaint.exception.ResourceNotFoundException("Reopen complaint not found"));
+
+            reopen.setStatus(com.visioners.civic.complaint.model.ReopenStatus.CLOSED);
+            reopenComplaintRepository.save(reopen);
+        }
+
         notificationService.notifyDepartmentOfficer(
                 complaint.getComplaintId(),
                 complaint.getAssignedBy().getUser().getId(),
                 NotificationType.RESOLVED_COMPLAINT);
+
+        // audit: worker resolved
+        try {
+            auditService.log(
+                    complaint.getId(),
+                    null,
+                    ActionType.WORKER_RESOLVED,
+                    ActorType.WORKER,
+                    worker.getId(),
+                    IssueStatus.ASSIGNED.name(),
+                    complaint.getStatus().name(),
+                    resolveComplaintDto.solutionNote(),
+                    complaint.getSolutionImageUrl(),
+                    null,
+                    resolveComplaintDto.lat(),
+                    resolveComplaintDto.lon());
+        } catch (Exception ex) {
+            // continue on audit failure
+        }
 
         return ComplaintService.getComplaintView(complaint);
     }

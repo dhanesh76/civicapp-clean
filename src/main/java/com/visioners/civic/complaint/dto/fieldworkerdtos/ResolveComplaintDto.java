@@ -23,6 +23,9 @@ public record ResolveComplaintDto(
 
     @NotBlank(message = "solutionNote cannot be empty")
     @Size(max = 2000, message = "solutionNote cannot exceed 2000 characters")
-    String solutionNote) {
+    String solutionNote,
+    // optional reopen id when resolving in context of a reopen
+    String reopenId) {
 }
+ 
 

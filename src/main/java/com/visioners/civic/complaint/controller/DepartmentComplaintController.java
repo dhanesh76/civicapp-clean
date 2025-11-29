@@ -1,10 +1,13 @@
 package com.visioners.civic.complaint.controller;
+
 import jakarta.validation.Valid;
 
 import java.util.Date;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.SortDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -38,36 +41,33 @@ public class DepartmentComplaintController {
     @GetMapping
     public ResponseEntity<Page<DeptComplaintsSummaryDTO>> viewDeptComplaints(
             @AuthenticationPrincipal UserPrincipal principal,
-            Pageable page,
+            @SortDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable page,
             @RequestParam(required = false) IssueSeverity severity,
             @RequestParam(required = false) IssueStatus status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date to
-    ) {
-        return ResponseEntity.ok(departmentComplaintService.viewDeptComplaints(principal, page, severity, status, from, to));
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date to) {
+        return ResponseEntity
+                .ok(departmentComplaintService.viewDeptComplaints(principal, page, severity, status, from, to));
     }
 
     @PostMapping("/assign")
     public ResponseEntity<ComplaintViewDTO> assignComplaint(
             @AuthenticationPrincipal UserPrincipal principal,
-            @Valid @RequestBody AssignComplaintDTO dto
-    ) {
+            @Valid @RequestBody AssignComplaintDTO dto) {
         return ResponseEntity.ok(departmentComplaintService.assignComplaint(principal, dto));
     }
 
     @PostMapping("/approve/{complaintId}")
     public ResponseEntity<ComplaintViewDTO> approveComplaint(
             @AuthenticationPrincipal UserPrincipal principal,
-            @PathVariable String complaintId
-    ) {
+            @PathVariable String complaintId) {
         return ResponseEntity.ok(departmentComplaintService.approveComplaint(principal, complaintId));
     }
 
     @PostMapping("/reject")
     public ResponseEntity<ComplaintViewDTO> rejectComplaint(
             @AuthenticationPrincipal UserPrincipal principal,
-            @Valid @RequestBody RejectComplaintDto dto
-    ) {
+            @Valid @RequestBody RejectComplaintDto dto) {
         return ResponseEntity.ok(departmentComplaintService.rejectComplaint(principal, dto));
     }
 
@@ -75,16 +75,14 @@ public class DepartmentComplaintController {
     public ResponseEntity<DepartmentComplaintStatisticsDTO> getStatistics(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date to
-    ) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date to) {
         return ResponseEntity.ok(departmentComplaintService.getStatistics(principal, from, to));
     }
-    
+
     @GetMapping("/{complaintId}")
     public ResponseEntity<ComplaintViewDTO> getComplaintDetail(
             @AuthenticationPrincipal UserPrincipal principal,
-            @PathVariable String complaintId
-    ) {
+            @PathVariable String complaintId) {
         return ResponseEntity.ok(departmentComplaintService.getComplaintByComplaintIdDetail(principal, complaintId));
     }
 
@@ -99,9 +97,11 @@ public class DepartmentComplaintController {
 
     // @GetMapping("/rejected-complaints")
     // public ResponseEntity<Page<ComplaintViewDTO>> getRejectedComplaints(
-    //         @AuthenticationPrincipal UserPrincipal principal,
-    //         Pageable pageable
+    // @AuthenticationPrincipal UserPrincipal principal,
+    // Pageable pageable
     // ) {
-    //     return ResponseEntity.ok(departmentComplaintService.getRejectedComplaints(principal, pageable));
+    // return
+    // ResponseEntity.ok(departmentComplaintService.getRejectedComplaints(principal,
+    // pageable));
     // }
 }
