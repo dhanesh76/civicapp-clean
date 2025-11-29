@@ -154,7 +154,7 @@ public class BlockAdminService {
         notificationService.notifyDepartmentOfficer(
                 complaint.getComplaintId(),
                 dept.getId(),
-                NotificationType.ASSIGNED_COMPLAINT);
+                NotificationType.NEW_COMPLAINT);
     }
 
     @Transactional

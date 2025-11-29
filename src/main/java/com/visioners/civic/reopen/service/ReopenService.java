@@ -15,6 +15,7 @@ import com.visioners.civic.complaint.entity.Complaint;
 import com.visioners.civic.complaint.entity.ReopenComplaint;
 import com.visioners.civic.complaint.model.IssueStatus;
 import com.visioners.civic.complaint.model.NotificationType;
+import com.visioners.civic.complaint.model.ReopenStatus;
 import com.visioners.civic.reopen.dto.*;
 import com.visioners.civic.complaint.Specifications.ReopenSpecification;
 import com.visioners.civic.complaint.repository.ComplaintRepository;
@@ -136,12 +137,12 @@ public class ReopenService {
     }
 
     // ---------- LISTING endpoints (generic) ----------
-    public Page<ReopenComplaint> listReopensForBlockAdmin(Staff ba, Pageable pageable, com.visioners.civic.complaint.model.ReopenStatus status,
+    public Page<ReopenComplaint> listReopensForBlockAdmin(Staff ba, Pageable pageable,
                                                          com.visioners.civic.complaint.model.IssueSeverity severity, Date from, Date to) {
         var spec = org.springframework.data.jpa.domain.Specification.<ReopenComplaint>unrestricted();
         spec = spec
                 .and(ReopenSpecification.hasBlockId(ba.getBlock().getId()))
-                .and(ReopenSpecification.hasStatus(status))
+                .and(ReopenSpecification.hasStatus(ReopenStatus.PENDING))
                 .and(ReopenSpecification.hasSeverity(severity))
                 .and(ReopenSpecification.hasDateRange(from, to));
         return reopenRepo.findAll(spec, pageable);
@@ -150,11 +151,20 @@ public class ReopenService {
     public Page<ReopenComplaint> listReopensForDepartment(Staff officer, Pageable pageable, com.visioners.civic.complaint.model.ReopenStatus status,
                                                          com.visioners.civic.complaint.model.IssueSeverity severity, Date from, Date to) {
         var spec = org.springframework.data.jpa.domain.Specification.<ReopenComplaint>unrestricted();
-        spec = spec
-                .and(ReopenSpecification.hasDepartmentId(officer.getDepartment().getId()))
+        Long officerDeptId = officer.getDepartment() == null ? null : officer.getDepartment().getId();
+        if (officerDeptId == null) {
+            spec = spec
+                .and((root, query, cb) -> cb.isNull(root.get("department")))
                 .and(ReopenSpecification.hasStatus(status))
                 .and(ReopenSpecification.hasSeverity(severity))
                 .and(ReopenSpecification.hasDateRange(from, to));
+        } else {
+            spec = spec
+                .and(ReopenSpecification.hasDepartmentId(officerDeptId))
+                .and(ReopenSpecification.hasStatus(status))
+                .and(ReopenSpecification.hasSeverity(severity))
+                .and(ReopenSpecification.hasDateRange(from, to));
+        }
         return reopenRepo.findAll(spec, pageable);
     }
 
@@ -181,8 +191,7 @@ public class ReopenService {
 
     // ---------- GET detail (user, dept, ba) ----------
     public ReopenComplaint getReopenByReopenIdForUser(Users user, String reopenId) {
-        ReopenComplaint r = reopenRepo.findByReopenId(reopenId)
-                .orElseThrow(() -> new com.visioners.civic.complaint.exception.ComplaintNotFoundException("Reopen not found"));
+        ReopenComplaint r = findReopenByIdTrimmed(reopenId);
         if (!Objects.equals(r.getRaisedBy().getId(), user.getId()) && !Objects.equals(r.getParentComplaint().getRaisedBy().getId(), user.getId())) {
             throw new com.visioners.civic.exception.AccessDeniedException("You do not have access to this reopen");
         }
@@ -190,18 +199,27 @@ public class ReopenService {
     }
 
     public ReopenComplaint getReopenByReopenIdForDepartment(Staff officer, String reopenId) {
-        ReopenComplaint r = reopenRepo.findByReopenId(reopenId)
-                .orElseThrow(() -> new com.visioners.civic.complaint.exception.ComplaintNotFoundException("Reopen not found"));
+        ReopenComplaint r = findReopenByIdTrimmed(reopenId);
         Long reopenDeptId = r.getDepartment() == null ? (r.getParentComplaint().getDepartment() == null ? null : r.getParentComplaint().getDepartment().getId()) : r.getDepartment().getId();
-        if (reopenDeptId == null || !reopenDeptId.equals(officer.getDepartment().getId())) {
+        Long officerDeptIdLocal = officer.getDepartment() == null ? null : officer.getDepartment().getId();
+        if (reopenDeptId == null || officerDeptIdLocal == null || !reopenDeptId.equals(officerDeptIdLocal)) {
             throw new IllegalArgumentException("Reopen complaint does not belong to your department");
         }
         return r;
     }
 
+    // helper: validate, trim and fetch reopen by public id
+    private ReopenComplaint findReopenByIdTrimmed(String reopenId) {
+        if (reopenId == null || reopenId.isBlank()) {
+            throw new com.visioners.civic.complaint.exception.ComplaintNotFoundException("Reopen id is required");
+        }
+        String id = reopenId.trim();
+        return reopenRepo.findByReopenId(id)
+                .orElseThrow(() -> new com.visioners.civic.complaint.exception.ComplaintNotFoundException("Reopen not found: " + id));
+    }
+
     public ReopenComplaint getReopenByReopenIdForBlockAdmin(Staff ba, String reopenId) {
-        ReopenComplaint r = reopenRepo.findByReopenId(reopenId)
-                .orElseThrow(() -> new com.visioners.civic.complaint.exception.ComplaintNotFoundException("Reopen not found"));
+        ReopenComplaint r = findReopenByIdTrimmed(reopenId);
         Long blockId = r.getParentComplaint().getBlock().getId();
         if (!Objects.equals(blockId, ba.getBlock().getId())) {
             throw new IllegalArgumentException("Reopen complaint does not belong to your block");
@@ -253,8 +271,7 @@ public class ReopenService {
             throw new com.visioners.civic.exception.AccessDeniedException("Complaint not in your block");
         }
 
-        ReopenComplaint reopen = reopenRepo.findByReopenId(dto.getReopenId())
-                .orElseThrow(() -> new IllegalArgumentException("Reopen not found"));
+        ReopenComplaint reopen = findReopenByIdTrimmed(dto.getReopenId());
 
         var dept = complaint.getDepartment();
         // Use DTO departmentId (BA chooses)
@@ -293,11 +310,11 @@ public class ReopenService {
     // ---------- Department actions ----------
     @Transactional
     public void deptAssignReopen(Staff officer, DeptAssignReopenDTO dto) {
-        ReopenComplaint reopen = reopenRepo.findByReopenId(dto.getReopenId())
-                .orElseThrow(() -> new IllegalArgumentException("Reopen not found"));
+        ReopenComplaint reopen = findReopenByIdTrimmed(dto.getReopenId());
 
         Long reopenDeptId = reopen.getDepartment() == null ? (reopen.getParentComplaint().getDepartment() == null ? null : reopen.getParentComplaint().getDepartment().getId()) : reopen.getDepartment().getId();
-        if (reopenDeptId == null || !reopenDeptId.equals(officer.getDepartment().getId())) {
+        Long officerDeptIdLocal = officer.getDepartment() == null ? null : officer.getDepartment().getId();
+        if (reopenDeptId == null || officerDeptIdLocal == null || !reopenDeptId.equals(officerDeptIdLocal)) {
             throw new IllegalArgumentException("Reopen complaint does not belong to your department");
         }
 
@@ -328,15 +345,15 @@ public class ReopenService {
 
     @Transactional
     public void deptRejectReopen(Staff officer, DeptRejectReopenDTO dto) {
-        ReopenComplaint reopen = reopenRepo.findByReopenId(dto.getReopenId())
-                .orElseThrow(() -> new IllegalArgumentException("Reopen not found"));
+        ReopenComplaint reopen = findReopenByIdTrimmed(dto.getReopenId());
 
         Long reopenDeptId = reopen.getDepartment() == null ? (reopen.getParentComplaint().getDepartment() == null ? null : reopen.getParentComplaint().getDepartment().getId()) : reopen.getDepartment().getId();
-        if (reopenDeptId == null || !reopenDeptId.equals(officer.getDepartment().getId())) {
+        Long officerDeptIdLocal = officer.getDepartment() == null ? null : officer.getDepartment().getId();
+        if (reopenDeptId == null || officerDeptIdLocal == null || !reopenDeptId.equals(officerDeptIdLocal)) {
             throw new IllegalArgumentException("Reopen complaint does not belong to your department");
         }
 
-        reopen.setStatus(com.visioners.civic.complaint.model.ReopenStatus.REJECTED);
+        reopen.setStatus(com.visioners.civic.complaint.model.ReopenStatus.ASSIGNED);
         reopen.setBaDecisionBy(officer); // storing officer as decision maker
         reopen.setBaDecisionAt(Instant.now());
         reopen.setBaDecisionNote(dto.getNote());
@@ -353,11 +370,13 @@ public class ReopenService {
 
     @Transactional
     public void deptApproveReopen(Staff officer, DeptApproveReopenDTO dto) {
-        ReopenComplaint reopen = reopenRepo.findByReopenId(dto.getReopenId())
-                .orElseThrow(() -> new IllegalArgumentException("Reopen not found"));
-
+        ReopenComplaint reopen = findReopenByIdTrimmed(dto.getReopenId());
+        
         Long reopenDeptId = reopen.getDepartment() == null ? (reopen.getParentComplaint().getDepartment() == null ? null : reopen.getParentComplaint().getDepartment().getId()) : reopen.getDepartment().getId();
-        if (reopenDeptId == null || !reopenDeptId.equals(officer.getDepartment().getId())) {
+        
+        Long officerDeptIdLocal = officer.getDepartment() == null ? null : officer.getDepartment().getId();
+
+        if (reopenDeptId == null || officerDeptIdLocal == null || !reopenDeptId.equals(officerDeptIdLocal)) {
             throw new IllegalArgumentException("Reopen complaint does not belong to your department");
         }
 
@@ -388,13 +407,16 @@ public class ReopenService {
     // ---------- Worker resolves a reopen (resolves parent complaint) ----------
     @Transactional
     public void workerResolveReopen(Staff worker, MultipartFile imageFile, WorkerResolveDTO dto) throws IOException {
-        Complaint complaint = complaintRepository.findByComplaintId(dto.getComplaintId())
+        
+        Complaint complaint = complaintRepository.findByComplaintId(dto.getParentComplaintId())
                 .orElseThrow(() -> new com.visioners.civic.complaint.exception.ComplaintNotFoundException("Complaint not found"));
+        
+        ReopenComplaint reopenc = findReopenByIdTrimmed(dto.getReopenId());
 
         if (!Objects.equals(worker.getId(), complaint.getAssignedTo() != null ? complaint.getAssignedTo().getId() : null)) {
             throw new com.visioners.civic.exception.UnauthorizedActionException("Complaint not assigned to this worker");
         }
-        if (!Objects.equals(complaint.getStatus(), IssueStatus.ASSIGNED)) {
+        if (!Objects.equals(reopenc.getStatus(), ReopenStatus.ASSIGNED)) {
             throw new com.visioners.civic.complaint.exception.InvalidStatusTransitionException("Complaint is not in ASSIGNED status");
         }
 
@@ -409,8 +431,7 @@ public class ReopenService {
 
         // update reopen if present
         if (dto.getReopenId() != null && !dto.getReopenId().isBlank()) {
-            ReopenComplaint reopen = reopenRepo.findByReopenId(dto.getReopenId())
-                    .orElseThrow(() -> new IllegalArgumentException("Reopen not found"));
+                ReopenComplaint reopen = findReopenByIdTrimmed(dto.getReopenId());
             reopen.setStatus(com.visioners.civic.complaint.model.ReopenStatus.RESOLVED);
             reopenRepo.save(reopen);
         }
@@ -425,8 +446,7 @@ public class ReopenService {
 
     public ReopenComplaint getReopenByReopenIdForWorker(Staff worker, String reopenId) {
 
-        ReopenComplaint r = reopenRepo.findByReopenId(reopenId)
-                .orElseThrow(() -> new com.visioners.civic.complaint.exception.ComplaintNotFoundException("Reopen not found"));
+        ReopenComplaint r = findReopenByIdTrimmed(reopenId);
 
         // Worker has access only if assigned to the parent complaint
         Long assignedWorkerId = r.getParentComplaint().getAssignedTo() != null

@@ -114,5 +114,4 @@ public class UserReopenController {
 
         return ResponseEntity.ok(detail);
         }
-
 }

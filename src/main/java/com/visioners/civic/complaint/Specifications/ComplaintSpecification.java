@@ -97,6 +97,7 @@ public class ComplaintSpecification {
                                             Date fromDate,Date toDate) {
                                                 
         Specification<Complaint> specification = Specification.unrestricted();
+        specification=
         specification.and(ComplaintSpecification.hasDate(fromDate, toDate))
         .and(ComplaintSpecification.hasSeverity(severity))
         .and(ComplaintSpecification.hasStatus(status));

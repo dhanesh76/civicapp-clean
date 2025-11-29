@@ -79,4 +79,5 @@ public class ReopenComplaint {
 
     @Column(name = "reopen_number")
     private int reopenNumber;
+
 }

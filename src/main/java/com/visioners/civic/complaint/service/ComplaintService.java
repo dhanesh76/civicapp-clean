@@ -125,8 +125,8 @@ public class ComplaintService {
         return Location.builder()
                         .block(complaint.getBlock().getName())
                         .district(complaint.getDistrict().getName())
-                        .department(complaint.getDepartment().getName())
-                        .departmentId(complaint.getDepartment().getId())
+                            .department(complaint.getDepartment() == null ? null : complaint.getDepartment().getName())
+                            .departmentId(complaint.getDepartment() == null ? null : complaint.getDepartment().getId())
                         .latitude(complaint.getLocationPoint().getY())
                         .longitude(complaint.getLocationPoint().getX())
                         .build();

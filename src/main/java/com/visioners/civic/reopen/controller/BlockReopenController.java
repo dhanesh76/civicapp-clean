@@ -31,13 +31,12 @@ public class BlockReopenController {
     public ResponseEntity<Page<ReopenSummaryDTO>> listForBA(
             @AuthenticationPrincipal UserPrincipal principal,
             @SortDefault(sort = "createdAt") Pageable page,
-            @RequestParam(required = false) com.visioners.civic.complaint.model.ReopenStatus status,
             @RequestParam(required = false) com.visioners.civic.complaint.model.IssueSeverity severity,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date to) {
 
         Staff ba = staffService.getStaff(principal.getUser());
-        Page<com.visioners.civic.complaint.entity.ReopenComplaint> p = reopenService.listReopensForBlockAdmin(ba, page, status, severity, from, to);
+        Page<com.visioners.civic.complaint.entity.ReopenComplaint> p = reopenService.listReopensForBlockAdmin(ba, page, severity, from, to);
 
         var dtoPage = p.map(r -> ReopenSummaryDTO.builder()
                 .reopenId(r.getReopenId())
