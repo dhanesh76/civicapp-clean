@@ -1,4 +1,4 @@
-package com.visioners.civic.staff.service;
+package com.visioners.civic.exception;
 
 public class DuplicateResourceException extends RuntimeException{
     public DuplicateResourceException(String message){

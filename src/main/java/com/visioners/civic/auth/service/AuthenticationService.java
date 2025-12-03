@@ -2,7 +2,6 @@ package com.visioners.civic.auth.service;
 
 import java.time.Instant;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.springframework.http.HttpStatus;
@@ -30,6 +29,9 @@ import com.visioners.civic.user.repository.UsersRepository;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import com.visioners.civic.exception.UserNotFoundException;
 import org.springframework.data.redis.core.RedisTemplate;
 import com.visioners.civic.auth.model.OtpPurpose;
 import com.visioners.civic.auth.dto.OtpRequest;
@@ -37,6 +39,8 @@ import com.visioners.civic.auth.dto.OtpRequest;
 @Service
 @RequiredArgsConstructor
 public class AuthenticationService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthenticationService.class);
 
     private final UsersRepository usersRepository;
     private final PasswordEncoder bcryptPasswordEncoder;
@@ -55,11 +59,11 @@ public class AuthenticationService {
         String mobileNumber = registerRequest.mobileNumber();
 
         if (usersRepository.findByMobileNumber(mobileNumber).isPresent()) {
-            throw new RuntimeException("Mobile number already registered. Continue with login.");
+            throw new com.visioners.civic.exception.DuplicateResourceException("Mobile number already registered. Continue with login.");
         }
 
-        String encodedPassword = bcryptPasswordEncoder.encode(registerRequest.password());
-        System.out.println("encrypt of " + registerRequest.password() + " is " + encodedPassword);
+    String encodedPassword = bcryptPasswordEncoder.encode(registerRequest.password());
+    log.debug("Created temp registration session for mobile: {}", mobileNumber);
         // Store in Redis temp session
         RegisterSession session = new RegisterSession(mobileNumber, encodedPassword, DEFAULT_ROLE);
         redisTemplate.opsForValue().set("temp:register:" + mobileNumber, session, 30, TimeUnit.MINUTES);
@@ -72,27 +76,34 @@ public class AuthenticationService {
     }
 
     public LoginResponse login(LoginRequest loginRequest) {
-        String mobileNumber = loginRequest.mobileNumber();
+        String loginId = loginRequest.loginId();
         String password = loginRequest.password();
 
-        Optional<Users> users = usersRepository.findByMobileNumber(mobileNumber);
-        if(!users.get().isVerified()){
-            throw new RuntimeException("mobile number not verified");
+        boolean isEmail = loginId.contains("@");
+        Users user;
+        if(isEmail){    
+            user = usersRepository.findByEmail(loginId).orElseThrow(() -> new UserNotFoundException("User with email " + loginId + " not found"));
+        }else{
+            user = usersRepository.findByMobileNumber(loginId).orElseThrow(() -> new UserNotFoundException("User with mobile number " + loginId + " not found"));
+        }
+
+        if (!user.isVerified()) {
+            throw new com.visioners.civic.exception.AccessDeniedException(isEmail ? "Email not verified" : "Mobile number not verified");
         }
 
         UsernamePasswordAuthenticationToken token =
-                new UsernamePasswordAuthenticationToken(mobileNumber, password);
+                new UsernamePasswordAuthenticationToken(loginId, password);
 
         Authentication authentication = authenticationManager.authenticate(token);
 
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-        Users user = userPrincipal.getUser();
-
+        
         String accessToken = jwtService.generateToken(userPrincipal);
         RefreshToken refreshToken = refreshTokenService.createToken(user);
 
         return LoginResponse.builder()
-                .mobileNumber(mobileNumber)
+                .loginId(loginId)
+                .userId(user.getId())
                 .accessToken(accessToken)
                 .refreshToken(refreshToken.getToken())
                 .timestamp(Instant.now())
@@ -138,7 +149,7 @@ public class AuthenticationService {
         String accessToken = jwtTokenService.generateToken(new UserPrincipal(user));
 
         return ResponseEntity.ok(LoginResponse.builder()
-                .mobileNumber(user.getMobileNumber())
+                .loginId(user.getMobileNumber() == null ? user.getEmail() : user.getMobileNumber())
                 .accessToken(accessToken)
                 .refreshToken(refreshTokenStr)
                 .timestamp(Instant.now())

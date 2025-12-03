@@ -17,9 +17,9 @@ public class MyUserDetailsService implements UserDetailsService {
     private final UsersRepository usersRepository;
     
     @Override
-    public UserDetails loadUserByUsername(String mobileNumber) {
-        Users user = usersRepository.findByMobileNumber(mobileNumber)
-            .orElseThrow(() -> new UserNotFoundException("No user exist with " + mobileNumber));
+    public UserDetails loadUserByUsername(String loginId) {
+        Users user = usersRepository.findByMobileNumberOrEmail(loginId, loginId)
+            .orElseThrow(() -> new UserNotFoundException("No user exist with " + loginId));
         return new UserPrincipal(user);
     }
 }

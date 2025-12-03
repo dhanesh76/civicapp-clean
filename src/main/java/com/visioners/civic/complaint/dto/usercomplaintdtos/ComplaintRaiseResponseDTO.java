@@ -10,6 +10,8 @@ import lombok.Builder;
 
 @Builder
 public record ComplaintRaiseResponseDTO(
+    String complaintId,
+    Long departmentId,
     String department,
     IssueSeverity severity,
     IssueStatus status,

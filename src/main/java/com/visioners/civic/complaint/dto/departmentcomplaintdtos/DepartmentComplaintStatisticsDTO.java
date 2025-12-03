@@ -12,4 +12,5 @@ public class DepartmentComplaintStatisticsDTO {
     private long resolvedCount;
     private long rejectedCount;
     private long closedCount;
+    private double avgRating;
 }

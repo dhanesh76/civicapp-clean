@@ -23,6 +23,7 @@ import lombok.Data;
 @Entity
 @Data
 public class Staff {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -38,12 +39,12 @@ public class Staff {
     private District district;
 
     @ManyToOne
-    @JoinColumn(name = "block_id", nullable = false)
+    @JoinColumn(name = "block_id", nullable = true)   // DA allow null
     @JsonManagedReference
     private Block block;
 
     @ManyToOne
-    @JoinColumn(name = "department_id", nullable = false)
+    @JoinColumn(name = "department_id", nullable = true) // OFFICER, WORKER need dept; BA_Admins no
     @JsonManagedReference
     private Department department;
 

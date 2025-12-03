@@ -10,9 +10,11 @@ import lombok.Builder;
 
 @Builder
 public record ComplaintSummaryDTO(
-    Long id,
+    String complaintId,
     IssueStatus status,
     IssueSeverity severity,
     Instant createdAt,
-    Location location
+    Location location, 
+    Long supportCount,
+    Long commentCount
 ) {}

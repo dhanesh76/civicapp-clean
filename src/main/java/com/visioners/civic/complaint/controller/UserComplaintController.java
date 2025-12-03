@@ -2,13 +2,12 @@ package com.visioners.civic.complaint.controller;
 
 import java.io.IOException;
 import java.util.Date;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.SortDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,11 +28,13 @@ import com.visioners.civic.complaint.dto.usercomplaintdtos.ComplaintSummaryDTO;
 import com.visioners.civic.complaint.model.IssueSeverity;
 import com.visioners.civic.complaint.model.IssueStatus;
 import com.visioners.civic.complaint.service.UserComplaintService;
+import org.springframework.data.domain.*;
 
 import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/users/complaints")
+@PreAuthorize("hasRole('USER')")
 @RequiredArgsConstructor
 public class UserComplaintController {
 
@@ -44,20 +45,21 @@ public class UserComplaintController {
     public ResponseEntity<ComplaintRaiseResponseDTO> raiseComplaint(
             @RequestPart("data") String data,
             @RequestPart MultipartFile imageFile,
+            @RequestPart(required = false) MultipartFile audioFile,
             @AuthenticationPrincipal UserPrincipal principal) throws IOException {
 
         ObjectMapper mapper = new ObjectMapper();
         ComplaintRaiseRequest complaintRaiseDto = mapper.readValue(data, ComplaintRaiseRequest.class);
         
-        ComplaintRaiseResponseDTO response = userComplaintService.raiseComplaint(complaintRaiseDto, imageFile, principal);
+        ComplaintRaiseResponseDTO response = userComplaintService.raiseComplaint(complaintRaiseDto, imageFile, audioFile, principal);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /** Paginated complaints for user with optional filters */
     @GetMapping
-    public ResponseEntity<Page<ComplaintSummaryDTO>> getAllComplaints(
+        public ResponseEntity<Page<ComplaintSummaryDTO>> getAllComplaints(
             @AuthenticationPrincipal UserPrincipal principal,
-            Pageable page,
+            @SortDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable page,
             @RequestParam(required = false) IssueSeverity severity,
             @RequestParam(required = false) IssueStatus status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date from,
@@ -70,7 +72,7 @@ public class UserComplaintController {
     @GetMapping("/{id}")
     public ResponseEntity<ComplaintDetailDTO> getComplaintDetail(
             @AuthenticationPrincipal UserPrincipal principal,
-            @PathVariable Long id) {
+            @PathVariable String id) {
 
         ComplaintDetailDTO detail = userComplaintService.getComplaintDetail(principal, id);
         return ResponseEntity.ok(detail);

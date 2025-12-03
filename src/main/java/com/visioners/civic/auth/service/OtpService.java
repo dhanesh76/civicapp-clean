@@ -11,6 +11,7 @@ import com.visioners.civic.auth.dto.OtpRequest;
 import com.visioners.civic.auth.dto.OtpValidationResult;
 import com.visioners.civic.auth.dto.OtpVerifyRequest;
 import com.visioners.civic.auth.model.OtpPurpose;
+import com.visioners.civic.util.SmsService;
 import com.visioners.civic.auth.model.OtpData;
 
 import lombok.RequiredArgsConstructor;

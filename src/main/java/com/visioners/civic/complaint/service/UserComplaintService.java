@@ -2,42 +2,30 @@ package com.visioners.civic.complaint.service;
 
 import java.io.IOException;
 import java.util.Date;
-
+import java.util.Optional;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Point;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.visioners.civic.auth.userdetails.UserPrincipal;
 import com.visioners.civic.aws.S3Service;
+import com.visioners.civic.community.service.CommunityInteractionService;
 import com.visioners.civic.complaint.Specifications.ComplaintSpecification;
-import com.visioners.civic.complaint.dto.usercomplaintdtos.ComplaintDetailDTO;
-import com.visioners.civic.complaint.dto.usercomplaintdtos.ComplaintRaiseRequest;
-import com.visioners.civic.complaint.dto.usercomplaintdtos.ComplaintRaiseResponseDTO;
-import com.visioners.civic.complaint.dto.usercomplaintdtos.ComplaintStatisticsDTO;
-import com.visioners.civic.complaint.dto.usercomplaintdtos.ComplaintSummaryDTO;
-import com.visioners.civic.complaint.entity.Block;
-import com.visioners.civic.complaint.entity.Complaint;
-import com.visioners.civic.complaint.entity.Department;
-import com.visioners.civic.complaint.entity.District;
-
-import com.visioners.civic.exception.AccessDeniedException;
-import com.visioners.civic.exception.ComplaintNotFoundException;
-import com.visioners.civic.exception.InvalidDepartmentException;
-import com.visioners.civic.exception.InvalidDistrictException;
-import com.visioners.civic.exception.InvalidBlockException;
-import com.visioners.civic.exception.UserNotFoundException;
-
-import com.visioners.civic.complaint.model.IssueSeverity;
-import com.visioners.civic.complaint.model.IssueStatus;
-import com.visioners.civic.complaint.model.Location;
-import com.visioners.civic.complaint.repository.BlockRepository;
-import com.visioners.civic.complaint.repository.ComplaintRepository;
-import com.visioners.civic.complaint.repository.DepartmentRepository;
-import com.visioners.civic.complaint.repository.DistrictRepository;
+import com.visioners.civic.complaint.dto.usercomplaintdtos.*;
+import com.visioners.civic.complaint.entity.*;
+import com.visioners.civic.complaint.model.*;
+import com.visioners.civic.complaint.repository.*;
+import com.visioners.civic.exception.*;
+import com.visioners.civic.notification.ComplaintNotificationService;
 import com.visioners.civic.user.entity.Users;
 import com.visioners.civic.user.repository.UsersRepository;
+import com.visioners.civic.util.ComplaintIdGenerator;
+import com.visioners.civic.ml.MLService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -51,113 +39,193 @@ public class UserComplaintService {
     private final DepartmentRepository departmentRepository;
     private final UsersRepository usersRepository;
     private final S3Service s3Service;
+    private final GeometryFactory geometryFactory;
+    private final ComplaintAudioRepository audioRepository;
+    private final ComplaintIdGenerator complaintIdGenerator;
+    private final ComplaintNotificationService notificationService;
+    private final CommunityInteractionService communityInteractionService;
+    private final ComplaintAuditService auditService;
+    private final MLService mlService;
 
-    /** Raise a new complaint */
-    public ComplaintRaiseResponseDTO raiseComplaint(ComplaintRaiseRequest request, MultipartFile imageFile, UserPrincipal principal) throws IOException {
+    @Transactional
+    public ComplaintRaiseResponseDTO raiseComplaint(
+            ComplaintRaiseRequest request,
+            MultipartFile imageFile,
+            MultipartFile audioFile,
+            UserPrincipal principal) throws IOException {
 
-        Users raisedBy = usersRepository.findByMobileNumber(principal.getUsername())
+        Users user = usersRepository.findByMobileNumber(principal.getUsername())
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
-        Location location = request.location();
+        validateCategory(request.category(), request.subcategory());
+        validateMLImage(imageFile);
 
-        District district = districtRepository.findByName(location.getSubAdminArea())
+        Location loc = request.location();
+        Point point = createPoint(loc.getLatitude(), loc.getLongitude());
+
+        District district = districtRepository.findByName(loc.getDistrict())
                 .orElseThrow(() -> new InvalidDistrictException("Invalid district"));
 
-        Block block = blockRepository.findByName(location.getLocality())
+        Block block = blockRepository.findByName(loc.getBlock())
                 .orElseThrow(() -> new InvalidBlockException("Invalid block"));
 
-        // TODO: Integrate ML server to detect department based on complaint
-        Department department = departmentRepository.findByName("ROAD_DEPARTMENT")
-                .orElseThrow(() -> new InvalidDepartmentException("Invalid department"));
+        String departmentName = mlService.routeDepartment(request.description());
 
-        // TODO: Integrate ML server to assign severity dynamically
-        IssueSeverity severity = IssueSeverity.MEDIUM;
+        Department department;
+        boolean mlUnknown = false;
+        IssueStatus status;
 
-        // Upload file to S3
-        String imageUrl = s3Service.uploadFile(imageFile);
+        if (departmentName.equalsIgnoreCase("UNKNOWN")) {
+            // ML could not classify → BA must route it later
+            department = null;
+            mlUnknown = true;
+            status = IssueStatus.PENDING;
+        } else {
+            status = IssueStatus.OPEN;
+            department = departmentRepository
+                    .findByNameAndBlockId(departmentName, block.getId())
+                    .orElseThrow(() -> new InvalidDepartmentException("Invalid department for block"));
+        }
 
-        // TODO: Integrate ML server to validate the image 
+        String complaintId = complaintIdGenerator.generateComplaintId(loc);
+        String imageUrl = s3Service.uploadFile(imageFile, user.getId());
+
         Complaint complaint = Complaint.builder()
+                .complaintId(complaintId)
                 .description(request.description())
-                .raisedBy(raisedBy)
-                .location(location)
+                .severity(IssueSeverity.MEDIUM) // Later upgraded by ML
+                .locationPoint(point)
+                .imageUrl(imageUrl)
+                .category(request.category())
+                .subCategory(request.subcategory())
+                .status(status)
+                .raisedBy(user)
                 .district(district)
                 .block(block)
                 .department(department)
-                .status(IssueStatus.OPEN)
-                .imageUrl(imageUrl)
-                .severity(severity)
                 .build();
 
-        complaintRepository.save(complaint);
+        complaint = complaintRepository.save(complaint);
+
+        // Optional audio
+        handleAudioUpload(audioFile, complaint, user);
+
+        // Notify if ML classified dept
+        if (!mlUnknown) {
+            notificationService.notifyDepartmentOfficer(
+                    complaintId,
+                    department.getId(),
+                    NotificationType.NEW_COMPLAINT
+            );
+        } else {
+            notificationService.notifyBlockAdmin(
+                    complaintId,
+                    complaint.getBlock().getId(),
+                    NotificationType.FOR_ROUTING);
+        }
+
+        // Audit: CREATED
+        auditService.log(
+                complaint.getId(),
+                null,
+                ActionType.CREATED,
+                ActorType.USER,
+                user.getId(),
+                null,
+                complaint.getStatus().name(),
+                "",
+                null,
+                null,
+                loc.getLatitude(),
+                loc.getLongitude()
+        );
 
         return new ComplaintRaiseResponseDTO(
-                department.getName(),
-                severity,
-                IssueStatus.OPEN,
+                complaint.getComplaintId(),
+                mlUnknown ? -1 : (complaint.getDepartment() == null ? -1 : complaint.getDepartment().getId()),
+                mlUnknown ? "TBD" : (complaint.getDepartment() == null ? "TBD" : complaint.getDepartment().getName()),
+                complaint.getSeverity(),
+                complaint.getStatus(),
                 complaint.getCreatedAt()
         );
     }
 
-    /** Get paginated list of complaints for the logged-in user with filters */
-    public Page<ComplaintSummaryDTO> getAllComplaints(UserPrincipal principal, Pageable page,
-                                                      IssueSeverity severity, IssueStatus status, Date from, Date to) {
+    public Page<ComplaintSummaryDTO> getAllComplaints(
+            UserPrincipal principal,
+            Pageable page,
+            IssueSeverity severity,
+            IssueStatus status,
+            Date from,
+            Date to) {
 
         Users user = usersRepository.findByMobileNumber(principal.getUsername())
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
         Specification<Complaint> spec = Specification.unrestricted();
-                spec = spec
-                .and(ComplaintSpecification.hasRaisedBy(user))
+
+        spec  = spec.and(ComplaintSpecification.hasRaisedBy(user))
                 .and(ComplaintSpecification.hasSeverity(severity))
                 .and(ComplaintSpecification.hasStatus(status))
                 .and(ComplaintSpecification.hasDate(from, to));
 
         return complaintRepository.findAll(spec, page)
                 .map(c -> ComplaintSummaryDTO.builder()
-                        .id(c.getId())
+                        .complaintId(c.getComplaintId())
                         .status(c.getStatus())
                         .severity(c.getSeverity())
-                        .location(c.getLocation())
+                        .location(ComplaintService.convertToLocation(c))
+                        .supportCount(communityInteractionService.getSupportCount(c))
+                        .commentCount(communityInteractionService.getCommentCount(c))
                         .createdAt(c.getCreatedAt())
                         .build());
     }
 
-    /** Get detailed view of a single complaint */
-    public ComplaintDetailDTO getComplaintDetail(UserPrincipal principal, Long complaintId) {
+    // ---------------------------------------------------------------------------
+    //                    GET SINGLE COMPLAINT DETAIL (USER)
+    // ---------------------------------------------------------------------------
+    public ComplaintDetailDTO getComplaintDetail(UserPrincipal principal, String complaintId) {
 
-        Complaint complaint = complaintRepository.findById(complaintId)
+        Complaint complaint = complaintRepository.findByComplaintId(complaintId)
                 .orElseThrow(() -> new ComplaintNotFoundException("Complaint not found"));
 
-        if (complaint.getRaisedBy().getId() != principal.getUser().getId()) {
-            throw new AccessDeniedException("Access denied: You do not own this complaint");
+        if (!complaint.getRaisedBy().getId().equals(principal.getUser().getId())) {
+            throw new AccessDeniedException("You do not own this complaint");
         }
 
+        Optional<ComplaintAudio> audioOpt = audioRepository.findByComplaintId(complaint.getId());
 
         return ComplaintDetailDTO.builder()
-                .id(complaint.getId())
+                .complaintId(complaint.getComplaintId())
                 .description(complaint.getDescription())
                 .status(complaint.getStatus())
                 .severity(complaint.getSeverity())
-                .location(complaint.getLocation())
+                .audioUrl(audioOpt.map(ComplaintAudio::getAudioUrl).orElse(null))
+                .location(ComplaintService.convertToLocation(complaint))
                 .imageUrl(complaint.getImageUrl())
                 .createdAt(complaint.getCreatedAt())
                 .assignedAt(complaint.getAssignedAt())
                 .resolvedAt(complaint.getResolvedAt())
-                .solutionNote(complaint.getStatus() == IssueStatus.RESOLVED ? complaint.getSolutionNote() : null)
-                .solutionImageUrl(complaint.getStatus() == IssueStatus.RESOLVED ? complaint.getSolutionImageUrl() : null)
+                .solutionNote(
+                        complaint.getStatus() == IssueStatus.RESOLVED
+                                ? complaint.getSolutionNote() : null)
+                .solutionImageUrl(
+                        complaint.getStatus() == IssueStatus.RESOLVED
+                                ? complaint.getSolutionImageUrl() : null)
+                .communityDetail(communityInteractionService.getDetail(complaint))
                 .build();
     }
 
-    /** Get statistics of complaints raised by the user */
-    public ComplaintStatisticsDTO getUserStatistics(UserPrincipal principal, Date from, Date to) {
+    // ---------------------------------------------------------------------------
+    //                   STATISTICS FOR USER DASHBOARD
+    // ---------------------------------------------------------------------------
+    public ComplaintStatisticsDTO getUserStatistics(
+            UserPrincipal principal, Date from, Date to) {
 
         Users user = usersRepository.findByMobileNumber(principal.getUsername())
-                .orElseThrow(() -> new com.visioners.civic.exception.UserNotFoundException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
 
         Specification<Complaint> spec = Specification.unrestricted();
-
-               spec = spec.and(ComplaintSpecification.hasRaisedBy(user))
+        spec=spec.and(ComplaintSpecification.hasRaisedBy(user))
                 .and(ComplaintSpecification.hasDate(from, to));
 
         long total = complaintRepository.count(spec);
@@ -173,5 +241,37 @@ public class UserComplaintService {
                 .resolvedCount(resolved)
                 .closedCount(closed)
                 .build();
+    }
+
+    private void validateCategory(Category c, SubCategory s) {
+        if (!s.getCategory().equals(c)) {
+            throw new IllegalArgumentException("Invalid subcategory for category");
+        }
+    }
+
+    private void validateMLImage(MultipartFile image) {
+        if (!mlService.validateImage(image)) {
+            throw new IllegalArgumentException("Uploaded image is invalid");
+        }
+    }
+
+    private Point createPoint(double lat, double lon) {
+        try {
+            return com.visioners.civic.util.GeoUtils.toPoint(geometryFactory, lat, lon);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid coordinates");
+        }
+    }
+
+    private void handleAudioUpload(MultipartFile audioFile, Complaint complaint, Users user) throws IOException {
+        if (audioFile == null) return;
+
+        String audioUrl = s3Service.uploadAudio(audioFile, user.getId());
+        ComplaintAudio audio = ComplaintAudio.builder()
+                .complaint(complaint)
+                .audioUrl(audioUrl)
+                .build();
+
+        audioRepository.save(audio);
     }
 }

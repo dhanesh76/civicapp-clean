@@ -13,15 +13,26 @@ import com.visioners.civic.complaint.Specifications.ComplaintSpecification;
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.AssignComplaintDTO;
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.ComplaintViewDTO;
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.DepartmentComplaintStatisticsDTO;
+import com.visioners.civic.complaint.dto.departmentcomplaintdtos.DeptComplaintsSummaryDTO;
 import com.visioners.civic.complaint.dto.departmentcomplaintdtos.RejectComplaintDto;
 import com.visioners.civic.complaint.entity.Complaint;
+import com.visioners.civic.complaint.entity.ReopenComplaint;
+import com.visioners.civic.complaint.exception.InvalidStatusTransitionException;
+import com.visioners.civic.complaint.exception.ResourceNotFoundException;
 import com.visioners.civic.complaint.model.IssueSeverity;
 import com.visioners.civic.complaint.model.IssueStatus;
+import com.visioners.civic.complaint.model.NotificationType;
 import com.visioners.civic.complaint.repository.ComplaintRepository;
 import com.visioners.civic.exception.*;
+import com.visioners.civic.notification.ComplaintNotificationService;
+import com.visioners.civic.reopen.repository.ReopenComplaintRepository;
 import com.visioners.civic.staff.entity.Staff;
 import com.visioners.civic.staff.repository.StaffRepository;
 import com.visioners.civic.staff.service.StaffService;
+import com.visioners.civic.util.SmsService;
+import com.visioners.civic.complaint.model.ActionType;
+import com.visioners.civic.complaint.model.ActorType;
+import com.visioners.civic.complaint.dto.usercomplaintdtos.ReopenSummaryDTO;
 
 import lombok.RequiredArgsConstructor;
 
@@ -33,9 +44,14 @@ public class DepartmentComplaintService {
     private final ComplaintService complaintService;
     private final ComplaintRepository complaintRepository;
     private final StaffRepository staffRepository;
+    private final SmsService smsService;
+    private final ComplaintNotificationService notificationService;
+    private final ComplaintFeedbackService complaintFeedbackService;
+    private final ComplaintAuditService auditService;
+    private final ReopenComplaintRepository reopenComplaintRepository;
 
     /** View complaints with optional filters */
-    public Page<ComplaintViewDTO> viewDeptComplaints(UserPrincipal principal, Pageable page,
+    public Page<DeptComplaintsSummaryDTO> viewDeptComplaints(UserPrincipal principal, Pageable page,
             IssueSeverity severity, IssueStatus status, Date from, Date to) {
 
         Staff officer = staffService.getStaff(principal.getUser());
@@ -51,14 +67,32 @@ public class DepartmentComplaintService {
 
         Page<Complaint> complaints = complaintRepository.findAll(specification, page);
 
-        return complaints.map(ComplaintService::mapToComplaintViewDTO);
+        return complaints.map(complaintService::mapToComplaintSummaryDTO);
     }
 
     /** Assign complaint to worker */
     public ComplaintViewDTO assignComplaint(UserPrincipal principal, AssignComplaintDTO dto) {
         Staff officer = staffService.getStaff(principal.getUser());
         Staff worker = staffService.getStaff(dto.getWorkerId());
-        Complaint complaint = complaintService.getComplaint(dto.getComplaintId());
+        // If this assignment is for a ReopenComplaint, operate on its parent complaint
+        Complaint complaint;
+        ReopenComplaint reopen = null;
+        
+        if (dto.getReopenId() != null && !dto.getReopenId().isBlank()) {
+            reopen = reopenComplaintRepository.findByReopenId(dto.getReopenId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Reopen complaint not found"));
+
+            // confirm officer department ownership
+            Long reopenDeptId = reopen.getDepartment() == null ? (reopen.getParentComplaint().getDepartment() == null ? null : reopen.getParentComplaint().getDepartment().getId()) : reopen.getDepartment().getId();
+            Long officerDeptIdCheck = officer.getDepartment() == null ? null : officer.getDepartment().getId();
+            if (reopenDeptId == null || officerDeptIdCheck == null || !reopenDeptId.equals(officerDeptIdCheck)) {
+                throw new IllegalArgumentException("Reopen complaint does not belong to your department");
+            }
+
+            complaint = reopen.getParentComplaint();
+        } else {
+            complaint = complaintService.getComplaintByComplaintId(dto.getComplaintId());
+        }
 
         validateAssignment(complaint, officer, worker);
 
@@ -70,13 +104,142 @@ public class DepartmentComplaintService {
 
         complaintRepository.save(complaint);
 
-        return ComplaintService.mapToComplaintViewDTO(complaint);
+        if (reopen != null) {
+            // mark reopen as assigned
+            reopen.setStatus(com.visioners.civic.complaint.model.ReopenStatus.ASSIGNED);
+            // ensure reopen references department
+            if (reopen.getDepartment() == null && complaint.getDepartment() != null) {
+                reopen.setDepartment(complaint.getDepartment());
+            }
+            reopenComplaintRepository.save(reopen);
+        }
+
+        // notification to the user 
+        smsService.sendSms(
+            complaint.getRaisedBy().getMobileNumber(),
+            "Dear Citizen, your complaint (" + complaint.getComplaintId() +
+            ") has been assigned to our field worker " + worker.getUser().getUsername() +
+            ". We appreciate your contribution toward a cleaner city."
+        );
+
+        notificationService.notifyUser(complaint.getComplaintId(), complaint.getRaisedBy().getId(), NotificationType.ASSIGNED_COMPLAINT);
+
+        // notification to the field worker: pass the user table id (Staff.user.id)
+        notificationService.notifyFieldWorker(complaint.getComplaintId(), worker.getUser().getId(), NotificationType.ASSIGNED_COMPLAINT);
+
+        // audit: assigned
+        try {
+            auditService.log(
+                    complaint.getId(),
+                    null,
+                    ActionType.ASSIGNED,
+                    ActorType.OFFICER,
+                    officer.getUser().getId(),
+                    IssueStatus.OPEN.name(),
+                    complaint.getStatus().name(),
+                    "",
+                    null,
+                    null,
+                    complaint.getLocationPoint().getY(),
+                    complaint.getLocationPoint().getX());
+        } catch (Exception ex) {
+            // continue on audit failure
+        }
+
+        return complaintService.mapToComplaintViewDTO(complaint);
+    }
+
+    /** Assign reopen to a worker by reopenId */
+    public ComplaintViewDTO assignReopen(UserPrincipal principal, String reopenId, com.visioners.civic.complaint.dto.departmentcomplaintdtos.ReopenAssignDTO dto) {
+        Staff officer = staffService.getStaff(principal.getUser());
+
+        ReopenComplaint reopen = reopenComplaintRepository.findByReopenId(reopenId)
+                .orElseThrow(() -> new com.visioners.civic.complaint.exception.ResourceNotFoundException("Reopen complaint not found"));
+
+        // department access
+        Long reopenDeptId = reopen.getDepartment() == null ? (reopen.getParentComplaint().getDepartment() == null ? null : reopen.getParentComplaint().getDepartment().getId()) : reopen.getDepartment().getId();
+        Long officerDeptIdCheck = officer.getDepartment() == null ? null : officer.getDepartment().getId();
+        if (reopenDeptId == null || officerDeptIdCheck == null || !reopenDeptId.equals(officerDeptIdCheck)) {
+            throw new IllegalArgumentException("Reopen complaint does not belong to your department");
+        }
+
+        Staff worker = staffService.getStaff(dto.getWorkerId());
+
+        Complaint complaint = reopen.getParentComplaint();
+
+        // assign parent complaint
+        complaint.setAssignedBy(officer);
+        complaint.setAssignedTo(worker);
+        complaint.setAssignedAt(Instant.now());
+        complaint.setStatus(IssueStatus.ASSIGNED);
+        complaint.setActionedAt(Instant.now());
+
+        complaintRepository.save(complaint);
+
+        // update reopen status
+        reopen.setStatus(com.visioners.civic.complaint.model.ReopenStatus.ASSIGNED);
+        reopenComplaintRepository.save(reopen);
+
+        // notifications
+        smsService.sendSms(
+                complaint.getRaisedBy().getMobileNumber(),
+                "Dear Citizen, your reopened complaint (" + complaint.getComplaintId() + ") has been assigned to our field worker " + worker.getUser().getUsername() + "."
+        );
+
+        notificationService.notifyFieldWorker(complaint.getComplaintId(), worker.getUser().getId(), NotificationType.ASSIGNED_COMPLAINT);
+
+        try {
+            auditService.log(
+                    complaint.getId(),
+                    null,
+                    ActionType.ASSIGNED,
+                    ActorType.OFFICER,
+                    officer.getUser().getId(),
+                    IssueStatus.OPEN.name(),
+                    complaint.getStatus().name(),
+                    "Assigned due to reopen: " + reopenId,
+                    null,
+                    null,
+                    complaint.getLocationPoint().getY(),
+                    complaint.getLocationPoint().getX());
+        } catch (Exception ex) {
+            // ignore
+        }
+
+        return complaintService.mapToComplaintViewDTO(complaint);
+    }
+
+    
+
+    /** Reject a reopen: set reopen status to REJECTED and attach note */
+    public ComplaintViewDTO rejectReopen(UserPrincipal principal, String reopenId, com.visioners.civic.complaint.dto.departmentcomplaintdtos.ReopenRejectDTO dto) {
+        Staff officer = staffService.getStaff(principal.getUser());
+
+        ReopenComplaint reopen = reopenComplaintRepository.findByReopenId(reopenId)
+                .orElseThrow(() -> new com.visioners.civic.complaint.exception.ResourceNotFoundException("Reopen complaint not found"));
+
+        Long reopenDeptId = reopen.getDepartment() == null ? (reopen.getParentComplaint().getDepartment() == null ? null : reopen.getParentComplaint().getDepartment().getId()) : reopen.getDepartment().getId();
+        Long officerDeptIdCheck = officer.getDepartment() == null ? null : officer.getDepartment().getId();
+        if (reopenDeptId == null || officerDeptIdCheck == null || !reopenDeptId.equals(officerDeptIdCheck)) {
+            throw new IllegalArgumentException("Reopen complaint does not belong to your department");
+        }
+
+        reopen.setBaDecisionBy(officer);
+        reopen.setBaDecisionAt(Instant.now());
+        reopen.setBaDecisionNote(dto.getRejectionNote());
+        reopen.setStatus(com.visioners.civic.complaint.model.ReopenStatus.REJECTED);
+        reopenComplaintRepository.save(reopen);
+
+        // Optionally notify user
+        notificationService.notifyUser(reopen.getParentComplaint().getComplaintId(), reopen.getParentComplaint().getRaisedBy().getId(), NotificationType.REJECTED_COMPLAINT);
+
+        return complaintService.mapToComplaintViewDTO(reopen.getParentComplaint());
     }
 
     /** Approve resolved complaint */
-    public ComplaintViewDTO approveComplaint(UserPrincipal principal, Long complaintId) {
+    public ComplaintViewDTO approveComplaint(UserPrincipal principal, String complaintId) {
         Staff officer = staffService.getStaff(principal.getUser());
-        Complaint complaint = complaintService.getComplaint(complaintId);
+        Complaint complaint = complaintService.getComplaintByComplaintId(complaintId);
 
         validateApproval(complaint, officer);
 
@@ -86,13 +249,69 @@ public class DepartmentComplaintService {
 
         complaintRepository.save(complaint);
 
-        return ComplaintService.mapToComplaintViewDTO(complaint);
+        //notification to the user 
+        smsService.sendSms(
+            complaint.getRaisedBy().getMobileNumber(),
+            "Your complaint (" + complaint.getComplaintId() +
+            ") has been approved and officially closed. Thank you for helping improve our community!"
+        );
+
+        // notify the original user who raised the complaint (pass Users.id)
+        notificationService.notifyUser(complaintId, complaint.getRaisedBy().getId(), NotificationType.APPROVED_COMPLAINT);
+
+        // notify the field worker by their user id (Staff.user.id)
+        notificationService.notifyFieldWorker(complaintId, complaint.getAssignedTo().getUser().getId(), NotificationType.APPROVED_COMPLAINT);
+
+        // audit: officer approved
+        try {
+            auditService.log(
+                    complaint.getId(),
+                    null,
+                    ActionType.OFFICER_APPROVED,
+                    ActorType.OFFICER,
+                    officer.getUser().getId(),
+                    IssueStatus.RESOLVED.name(),
+                    complaint.getStatus().name(),
+                    "",
+                    complaint.getSolutionImageUrl(),
+                    null,
+                    complaint.getLocationPoint().getY(),
+                    complaint.getLocationPoint().getX());
+        } catch (Exception ex) {
+            // ignore
+        }
+
+        return complaintService.mapToComplaintViewDTO(complaint);
     }
+
 
     /** Reject resolved complaint */
     public ComplaintViewDTO rejectComplaint(UserPrincipal principal, RejectComplaintDto dto) {
         Staff officer = staffService.getStaff(principal.getUser());
-        Complaint complaint = complaintService.getComplaint(dto.complaintId());
+        // If rejecting a reopen request
+        if (dto.reopenId() != null && !dto.reopenId().isBlank()) {
+            ReopenComplaint reopen = reopenComplaintRepository.findByReopenId(dto.reopenId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Reopen complaint not found"));
+
+            Long reopenDeptId = reopen.getDepartment() == null ? (reopen.getParentComplaint().getDepartment() == null ? null : reopen.getParentComplaint().getDepartment().getId()) : reopen.getDepartment().getId();
+            Long officerDeptIdCheck = officer.getDepartment() == null ? null : officer.getDepartment().getId();
+            if (reopenDeptId == null || officerDeptIdCheck == null || !reopenDeptId.equals(officerDeptIdCheck)) {
+                throw new IllegalArgumentException("Reopen complaint does not belong to your department");
+            }
+
+            reopen.setStatus(com.visioners.civic.complaint.model.ReopenStatus.REJECTED);
+            reopen.setBaDecisionBy(officer);
+            reopen.setBaDecisionAt(Instant.now());
+            reopen.setBaDecisionNote(dto.rejectionNote());
+            reopenComplaintRepository.save(reopen);
+
+            // notify user that reopen was rejected
+            notificationService.notifyUser(reopen.getParentComplaint().getComplaintId(), reopen.getParentComplaint().getRaisedBy().getId(), NotificationType.REOPENED_COMPLAINT);
+
+            return complaintService.mapToComplaintViewDTO(reopen.getParentComplaint());
+        }
+
+        Complaint complaint = complaintService.getComplaintByComplaintId(dto.complaintId());
 
         validateRejection(complaint, officer);
 
@@ -103,7 +322,27 @@ public class DepartmentComplaintService {
 
         complaintRepository.save(complaint);
 
-        return ComplaintService.mapToComplaintViewDTO(complaint);
+        notificationService.notifyFieldWorker(complaint.getComplaintId(), complaint.getAssignedTo().getUser().getId(), NotificationType.REJECTED_COMPLAINT);
+        
+        // audit: officer rejected
+        try {
+            auditService.log(
+                    complaint.getId(),
+                    null,
+                    ActionType.OFFICER_REJECTED,
+                    ActorType.OFFICER,
+                    officer.getUser().getId(),
+                    IssueStatus.RESOLVED.name(),
+                    complaint.getStatus().name(),
+                    complaint.getRejectionNote(),
+                    null,
+                    null,
+                    complaint.getLocationPoint().getY(),
+                    complaint.getLocationPoint().getX());
+        } catch (Exception ex) {
+            // ignore
+        }
+        return complaintService.mapToComplaintViewDTO(complaint);
     }
 
     /** Complaint statistics for department */
@@ -111,7 +350,7 @@ public class DepartmentComplaintService {
         Staff officer = staffService.getStaff(principal.getUser());
 
         Specification<Complaint> spec = Specification.unrestricted();
-        spec
+        spec = spec
                 .and(ComplaintSpecification.hasDepartment(officer.getDepartment()))
                 .and(ComplaintSpecification.hasDistrict(officer.getDistrict()))
                 .and(ComplaintSpecification.hasBlock(officer.getBlock()))
@@ -123,7 +362,9 @@ public class DepartmentComplaintService {
         long resolved = complaintRepository.count(spec.and(ComplaintSpecification.hasStatus(IssueStatus.RESOLVED)));
         long rejected = complaintRepository.count(spec.and(ComplaintSpecification.hasRejected()));
         long closed = complaintRepository.count(spec.and(ComplaintSpecification.hasStatus(IssueStatus.CLOSED)));
-
+        Long officerDeptId = officer.getDepartment() == null ? null : officer.getDepartment().getId();
+        double avgRating = complaintFeedbackService.findDepartmentAvgRating(officerDeptId);
+        
         return DepartmentComplaintStatisticsDTO.builder()
                 .totalComplaints(total)
                 .openCount(open)
@@ -131,31 +372,98 @@ public class DepartmentComplaintService {
                 .resolvedCount(resolved)
                 .rejectedCount(rejected)
                 .closedCount(closed)
+                .avgRating(avgRating)
                 .build();
     }
 
-     public ComplaintViewDTO getComplaintDetail(UserPrincipal principal, Long complaintId) {
+     public ComplaintViewDTO getComplaintByComplaintIdDetail(UserPrincipal principal, String complaintId) {
         Staff officer = staffRepository.findByUser(principal.getUser())
                 .orElseThrow(() -> new ResourceNotFoundException("Officer not found"));
 
-        Complaint complaint = complaintRepository.findById(complaintId)
+        Complaint complaint = complaintRepository.findByComplaintId(complaintId)
                 .orElseThrow(() -> new ResourceNotFoundException("Complaint not found"));
 
-        if (!complaint.getDepartment().getId().equals(officer.getDepartment().getId())) {
+        Long complaintDeptId = complaint.getDepartment() == null ? null : complaint.getDepartment().getId();
+        Long officerDeptIdLocal = officer.getDepartment() == null ? null : officer.getDepartment().getId();
+        if (complaintDeptId == null || officerDeptIdLocal == null || !complaintDeptId.equals(officerDeptIdLocal)) {
             throw new IllegalArgumentException("Complaint does not belong to your department");
         }
 
-        return ComplaintService.mapToComplaintViewDTO(complaint);
+        return complaintService.mapToComplaintViewDTO(complaint);
+    }
+
+    /** View reopens for department with optional date filters */
+    public Page<ReopenSummaryDTO> viewDeptReopens(UserPrincipal principal, Pageable page, Date from, Date to) {
+        Staff officer = staffService.getStaff(principal.getUser());
+
+        java.time.Instant fromInst = from == null ? null : from.toInstant();
+        java.time.Instant toInst = to == null ? null : to.toInstant();
+
+        // Build dynamic Specification so we only bind non-null parameters to SQL.
+        Long officerDeptForSpec = officer.getDepartment() == null ? null : officer.getDepartment().getId();
+        org.springframework.data.jpa.domain.Specification<com.visioners.civic.complaint.entity.ReopenComplaint> spec;
+        if (officerDeptForSpec == null) {
+            spec = (root, query, cb) -> cb.isNull(root.get("department"));
+        } else {
+            spec = (root, query, cb) -> cb.equal(root.get("department").get("id"), officerDeptForSpec);
+        }
+
+        if (fromInst != null) {
+            spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("createdAt"), fromInst));
+        }
+
+        if (toInst != null) {
+            spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("createdAt"), toInst));
+        }
+
+        Page<com.visioners.civic.complaint.entity.ReopenComplaint> reopens = reopenComplaintRepository.findAll(spec, page);
+
+        return reopens.map(ReopenSummaryDTO::fromEntity);
+    }
+
+    /**
+     * Get reopen detail by reopenId for department officers. Ensures department access.
+     */
+    public com.visioners.civic.complaint.dto.usercomplaintdtos.ReopenDetailDTO getReopenDetail(UserPrincipal principal, String reopenId) {
+        Staff officer = staffService.getStaff(principal.getUser());
+
+        ReopenComplaint reopen = reopenComplaintRepository.findByReopenId(reopenId)
+                .orElseThrow(() -> new com.visioners.civic.complaint.exception.ResourceNotFoundException("Reopen complaint not found"));
+
+        // Determine department ownership: reopen may have explicit department or inherit from parent complaint
+        Long reopenDeptId = reopen.getDepartment() == null ? (reopen.getParentComplaint().getDepartment() == null ? null : reopen.getParentComplaint().getDepartment().getId()) : reopen.getDepartment().getId();
+        Long officerDeptIdCheck = officer.getDepartment() == null ? null : officer.getDepartment().getId();
+        if (reopenDeptId == null || officerDeptIdCheck == null || !reopenDeptId.equals(officerDeptIdCheck)) {
+            throw new IllegalArgumentException("Reopen complaint does not belong to your department");
+        }
+
+        java.util.List<ReopenComplaint> all = reopenComplaintRepository.findByParentComplaint(reopen.getParentComplaint());
+        java.util.List<com.visioners.civic.complaint.dto.usercomplaintdtos.ReopenSummaryDTO> previous = new java.util.ArrayList<>();
+        for (ReopenComplaint r : all) {
+            if (!r.getReopenId().equals(reopen.getReopenId())) {
+                previous.add(com.visioners.civic.complaint.dto.usercomplaintdtos.ReopenSummaryDTO.fromEntity(r));
+            }
+        }
+
+        com.visioners.civic.complaint.dto.usercomplaintdtos.ReopenSummaryDTO current = com.visioners.civic.complaint.dto.usercomplaintdtos.ReopenSummaryDTO.fromEntity(reopen);
+
+        return com.visioners.civic.complaint.dto.usercomplaintdtos.ReopenDetailDTO.builder()
+                .parentComplaintId(reopen.getParentComplaint().getComplaintId())
+                .currentReopen(current)
+                .previousReopens(previous)
+                .build();
     }
 
     // ---------------- Validation Methods ----------------
     private void validateAssignment(Complaint complaint, Staff officer, Staff worker) {
-        if (!complaint.getDepartment().equals(officer.getDepartment())) {
+        if (complaint.getDepartment() == null || officer.getDepartment() == null || !complaint.getDepartment().equals(officer.getDepartment())) {
             throw new InvalidAssignmentException("Complaint does not belong to your department");
         }
-        if (!worker.getDepartment().equals(officer.getDepartment())) {
+
+        if (worker.getDepartment() == null || officer.getDepartment() == null || !worker.getDepartment().equals(officer.getDepartment())) {
             throw new InvalidAssignmentException("Worker does not belong to your department");
         }
+        
         if (!complaint.getStatus().equals(IssueStatus.OPEN)) {
             throw new InvalidStatusTransitionException("Cannot assign complaint with status " + complaint.getStatus());
         }

@@ -1,6 +1,8 @@
 package com.visioners.civic.config;
 
 
+import java.util.Objects;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,7 +24,7 @@ public class RedisConfig {
         @Value("${spring.data.redis.username}") String username,
         @Value("${spring.data.redis.password}") String password
     ) {
-        RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(host, port);
+        RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(Objects.requireNonNull(host), port);
         config.setUsername(username);
         config.setPassword(RedisPassword.of(password));
         return new LettuceConnectionFactory(config);
